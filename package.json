@@ -3,10 +3,18 @@
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~57.0.21",
+    "expo-av": "^16.0.8",
+    "expo-camera": "~57.0.4",
+    "expo-location": "~57.0.16",
+    "expo-speech": "~57.0.2",
     "expo-status-bar": "~57.0.1",
+    "expo-task-manager": "~57.0.16",
     "react": "19.2.3",
-    "react-native": "0.86.3"
+    "react-native": "0.86.3",
+    "react-native-maps": "1.27.2",
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
