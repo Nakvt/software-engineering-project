@@ -1,16 +1,16 @@
 /**
- * Tọa độ địa lý cơ bản (Kinh độ & Vĩ độ)
+ * Tọa độ địa lý khớp chuẩn API Backend (lat/lng)
  */
 export interface Coordinates {
-  latitude: number;   // Vĩ độ (Ví dụ: 10.762622)
-  longitude: number;  // Kinh độ (Ví dụ: 106.660172)
+  lat: number;   // Vĩ độ (Latitude)
+  lng: number;   // Kinh độ (Longitude)
 }
 
 /**
- * Vị trí chi tiết lấy từ cảm biến GPS của thiết bị
+ * Thông tin vị trí chi tiết từ cảm biến GPS
  */
 export interface UserLocation extends Coordinates {
-  accuracy: number | null;    // Sai số định vị tính bằng mét
+  accuracy: number | null;    // Sai số định vị (mét)
   speed: number | null;       // Tốc độ di chuyển (m/s)
-  timestamp: number;          // Thời điểm ghi nhận tọa độ
+  timestamp: number;          // Thời điểm ghi nhận
 }
