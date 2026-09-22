@@ -3,10 +3,11 @@ import { StyleSheet, View, Text, TouchableOpacity, Dimensions } from 'react-nati
 import MapView, { Marker, Circle, PROVIDER_DEFAULT } from 'react-native-maps';
 import { useGeofencing } from '../hooks/useGeofencing';
 import { MOCK_POIS } from '../../domain/models/mockPOI';
-import { AudioLib } from '../../libs/audio';
+import { TopBar } from '../components/TopBar';
+import { MiniPlayer } from '../components/MiniPlayer';
 
-export const MapScreen: React.FC = () => {
-  // Đổi setCurrentLocation thành simulateLocation
+// Nhận prop navigation từ React Navigation
+export const MapScreen: React.FC<any> = ({ navigation }) => {
   const { activePOI, hasPermission, simulateLocation } =
     useGeofencing(MOCK_POIS, 'vi-VN');
 
@@ -29,6 +30,14 @@ export const MapScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
+      {/* 1. Top Bar */}
+      <TopBar
+        onPressLanguage={() => console.log('Đổi ngôn ngữ')}
+        onPressScanQR={() => navigation.navigate('QRScanner')}
+        onSearchChange={(text) => console.log('Tìm kiếm:', text)}
+      />
+
+      {/* 2. Bản đồ */}
       <MapView
         style={styles.map}
         provider={PROVIDER_DEFAULT}
@@ -52,38 +61,22 @@ export const MapScreen: React.FC = () => {
                 longitude: poi.location.lng,
               }}
               radius={poi.radius}
-              strokeColor="rgba(0, 150, 255, 0.5)"
-              fillColor="rgba(0, 150, 255, 0.15)"
+              strokeColor="rgba(255, 99, 71, 0.6)"
+              fillColor="rgba(255, 99, 71, 0.15)"
             />
           </React.Fragment>
         ))}
       </MapView>
 
-      {activePOI && (
-        <View style={styles.activePoiCard}>
-          <Text style={styles.poiTitle}>🎧 Đang phát: {activePOI.name}</Text>
-          <Text style={styles.poiScript} numberOfLines={2}>
-            {activePOI.audio?.ttsScript}
-          </Text>
-          <TouchableOpacity
-            style={styles.stopButton}
-            onPress={() => AudioLib.stopAll()}
-          >
-            <Text style={styles.buttonText}>Dừng âm thanh</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Thanh công cụ Mock Test */}
+      {/* 3. Thanh nút bấm mô phỏng: Đẩy lên cao hơn để không che MiniPlayer và Bottom Tab */}
       <View style={styles.mockControls}>
-        <Text style={styles.mockLabel}>Mô phỏng di chuyển:</Text>
+        <Text style={styles.mockLabel}>Mô phỏng vị trí GPS:</Text>
         <View style={styles.mockButtonsRow}>
           {MOCK_POIS.map((poi, index) => (
             <TouchableOpacity
               key={poi.id}
               style={styles.mockButton}
               onPress={() => {
-                // Gọi hàm simulateLocation để lập tức kích hoạt Geofence & Audio
                 simulateLocation({
                   lat: poi.location.lat,
                   lng: poi.location.lng,
@@ -95,12 +88,27 @@ export const MapScreen: React.FC = () => {
           ))}
         </View>
       </View>
+
+      {/* 4. Mini Player nổi ở đáy: Nằm ngay trên Bottom Tab Bar */}
+      <MiniPlayer
+        poi={activePOI}
+        distanceMeters={15}
+        isPlaying={true}
+        onPressCard={() => {
+          if (activePOI) {
+            navigation.navigate('AudioPlayer', { poi: activePOI });
+          }
+        }}
+        onPressSelectTour={() => navigation.navigate('Tours')}
+      />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: {
+    flex: 1,
+  },
   map: {
     width: Dimensions.get('window').width,
     height: Dimensions.get('window').height,
@@ -116,52 +124,25 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#d9534f',
   },
-  activePoiCard: {
-    position: 'absolute',
-    top: 50,
-    left: 20,
-    right: 20,
-    backgroundColor: '#ffffff',
-    padding: 15,
-    borderRadius: 12,
-    elevation: 5,
-  },
-  poiTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#2b2b2b',
-    marginBottom: 4,
-  },
-  poiScript: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-  },
-  stopButton: {
-    backgroundColor: '#e74c3c',
-    paddingVertical: 6,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
   mockControls: {
     position: 'absolute',
-    bottom: 30,
-    left: 15,
-    right: 15,
+    // Đẩy lên vị trí cách đáy 110px để nhường chỗ cho MiniPlayer
+    bottom: 110,
+    left: 16,
+    right: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    padding: 12,
-    borderRadius: 10,
+    padding: 8,
+    borderRadius: 12,
     elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   mockLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 'bold',
-    marginBottom: 6,
-    color: '#333',
+    color: '#555',
+    marginBottom: 4,
   },
   mockButtonsRow: {
     flexDirection: 'row',
@@ -169,13 +150,13 @@ const styles = StyleSheet.create({
   },
   mockButton: {
     backgroundColor: '#007AFF',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
   },
   mockButtonText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 'bold',
   },
 });
