@@ -29,7 +29,7 @@ export const AdminDashboardScreen = () => {
           onPress={() => setActiveTab('cms')}
         >
           <Text style={[styles.menuText, activeTab === 'cms' && styles.menuTextActive]}>
-            📍 Quản lý POI & Nội dung (Key 5, 6)
+            📍 Quản lý POI & Nội dung
           </Text>
         </TouchableOpacity>
 
@@ -38,7 +38,7 @@ export const AdminDashboardScreen = () => {
           onPress={() => setActiveTab('tours')}
         >
           <Text style={[styles.menuText, activeTab === 'tours' && styles.menuTextActive]}>
-            🗺️ Quản lý Tour & QR Code (Key 3, 6)
+            🗺️ Quản lý Tour & QR Code 
           </Text>
         </TouchableOpacity>
 
@@ -47,7 +47,7 @@ export const AdminDashboardScreen = () => {
           onPress={() => setActiveTab('analytics')}
         >
           <Text style={[styles.menuText, activeTab === 'analytics' && styles.menuTextActive]}>
-            📊 Thống kê & Spatial Heatmap (Key 7)
+            📊 Thống kê & Spatial Heatmap
           </Text>
         </TouchableOpacity>
       </View>
@@ -56,7 +56,7 @@ export const AdminDashboardScreen = () => {
       <View style={styles.content}>
         {activeTab === 'cms' ? (
           <ScrollView style={styles.section} showsVerticalScrollIndicator={false}>
-            <Text style={styles.title}>Quản lý Trung tâm Địa điểm POI & Thuyết minh (UC6)</Text>
+            <Text style={styles.title}>Quản lý Trung tâm Địa điểm POI & Thuyết minh</Text>
 
             {/* FORM THÊM / CHỈNH SỬA POI ĐẦY ĐỦ TRƯỜNG DỮ LIỆU */}
             <View style={styles.formCard}>
@@ -166,7 +166,7 @@ export const AdminDashboardScreen = () => {
           </ScrollView>
         ) : activeTab === 'tours' ? (
           <ScrollView style={styles.section} showsVerticalScrollIndicator={false}>
-            <Text style={styles.title}>Quản lý Lộ trình Tour & Liên kết Mã QR (UC6)</Text>
+            <Text style={styles.title}>Quản lý Lộ trình Tour & Liên kết Mã QR</Text>
             
             <View style={styles.formCard}>
               <Text style={styles.formTitle}>✨ Tạo Tour Du Lịch & Liên Kết Danh Mục POI</Text>
@@ -198,7 +198,7 @@ export const AdminDashboardScreen = () => {
           </ScrollView>
         ) : (
           <ScrollView style={styles.section} showsVerticalScrollIndicator={false}>
-            <Text style={styles.title}>Thống kê Lượt nghe (Ẩn danh) & Spatial Heatmap (UC7)</Text>
+            <Text style={styles.title}>Thống kê Lượt nghe (Ẩn danh) & Spatial Heatmap</Text>
 
             <View style={styles.statsContainer}>
               <View style={[styles.card, { borderLeftColor: '#2563EB', borderLeftWidth: 4 }]}>
