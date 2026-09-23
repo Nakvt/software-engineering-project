@@ -29,7 +29,7 @@ export const AdminDashboardScreen = () => {
           onPress={() => setActiveTab('cms')}
         >
           <Text style={[styles.menuText, activeTab === 'cms' && styles.menuTextActive]}>
-            📍 Quản lý POI (Mục 6)
+            📍 Quản lý POI 
           </Text>
         </TouchableOpacity>
 
@@ -47,7 +47,7 @@ export const AdminDashboardScreen = () => {
           onPress={() => setActiveTab('analytics')}
         >
           <Text style={[styles.menuText, activeTab === 'analytics' && styles.menuTextActive]}>
-            📊 Thống kê & Heatmap (Mục 7)
+            📊 Thống kê & Heatmap 
           </Text>
         </TouchableOpacity>
       </View>
