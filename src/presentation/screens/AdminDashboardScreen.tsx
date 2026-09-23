@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList, TextInput } from 'react-native';
 import { MOCK_POIS, MOCK_ANALYTICS } from '../../data/mockCmsData';
 
 export const AdminDashboardScreen = () => {
@@ -35,6 +35,22 @@ export const AdminDashboardScreen = () => {
           <ScrollView style={styles.section}>
             <Text style={styles.title}>Quản lý Địa điểm (POI Management)</Text>
             
+            {/* FORM NHẬP / THÊM POI MỚI */}
+<View style={{ backgroundColor: '#FFFFFF', padding: 16, borderRadius: 8, marginBottom: 20, borderWidth: 1, borderColor: '#E5E7EB' }}>
+  <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111827', marginBottom: 12 }}>+ Thêm điểm POI mới</Text>
+  
+  <TextInput style={{ borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 6, padding: 8, marginBottom: 10 }} placeholder="Tên địa điểm POI..." />
+  
+  <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
+    <TextInput style={{ flex: 1, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 6, padding: 8 }} placeholder="Vĩ độ (Lat)..." />
+    <TextInput style={{ flex: 1, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 6, padding: 8 }} placeholder="Kinh độ (Long)..." />
+    <TextInput style={{ flex: 1, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 6, padding: 8 }} placeholder="Bán kính (m)..." />
+  </View>
+
+  <TouchableOpacity style={{ backgroundColor: '#2563EB', padding: 10, borderRadius: 6, alignItems: 'center' }}>
+    <Text style={{ color: '#FFFFFF', fontWeight: 'bold' }}>Tạo POI</Text>
+  </TouchableOpacity>
+</View>
             {/* Table Header */}
             <View style={[styles.tableRow, styles.tableHeader]}>
               <Text style={[styles.cell, styles.headerText]}>Tên POI</Text>
@@ -84,14 +100,15 @@ export const AdminDashboardScreen = () => {
   );
 };
 
+
 const styles = StyleSheet.create({
   container: { flex: 1, flexDirection: 'row', backgroundColor: '#F3F4F6' },
-  sidebar: { width: 240, backgroundColor: '#111827', padding: 20 },
-  logo: { color: '#FFFFFF', fontSize: 20, fontWeight: 'bold', marginBottom: 30 },
+  sidebar: { width: 240, backgroundColor: '#FFFFFF', padding: 20, borderWidth: 1, borderColor: '#E5E7EB' },
+  logo: { color: '#111827', fontSize: 20, fontWeight: 'bold', marginBottom: 30 },
   menuItem: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 8, marginBottom: 8 },
-  menuActive: { backgroundColor: '#2563EB' },
-  menuText: { color: '#9CA3AF', fontSize: 14, fontWeight: '500' },
-  menuTextActive: { color: '#FFFFFF', fontWeight: 'bold' },
+  menuActive: { backgroundColor: '#EFF6FF' },
+  menuText: { color: '#6B7280', fontSize: 14, fontWeight: '500' },
+  menuTextActive: { color: '#2563EB', fontWeight: 'bold' },
   content: { flex: 1, padding: 30 },
   section: { flex: 1 },
   title: { fontSize: 22, fontWeight: 'bold', color: '#111827', marginBottom: 20 },
@@ -104,6 +121,6 @@ const styles = StyleSheet.create({
   cardLabel: { color: '#6B7280', fontSize: 12, marginBottom: 6 },
   cardValue: { fontSize: 24, fontWeight: 'bold', color: '#2563EB' },
   cardValueSmall: { fontSize: 16, fontWeight: 'bold', color: '#111827' },
-  heatmapBox: { height: 320, backgroundColor: '#E5E7EB', borderRadius: 8, justifyContent: 'center', alignItems: 'center', borderStyle: 'dashed', borderWidth: 2, borderColor: '#9CA3AF' },
-  heatmapText: { color: '#4B5563', fontWeight: '600' },
+  heatmapBox: { height: 320, backgroundColor: '#F3F4F6', borderRadius: 8, justifyContent: 'center', alignItems: 'center', borderStyle: 'dashed', borderWidth: 2, borderColor: '#E5E7EB' },
+  heatmapText: { color: '#6B7280', fontWeight: '600' },
 });
