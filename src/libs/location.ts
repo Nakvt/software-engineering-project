@@ -9,11 +9,7 @@ export class LocationLib {
     try {
       const { status: foregroundStatus } =
         await Location.requestForegroundPermissionsAsync();
-      if (foregroundStatus !== 'granted') return false;
-
-      const { status: backgroundStatus } =
-        await Location.requestBackgroundPermissionsAsync();
-      return backgroundStatus === 'granted';
+      return foregroundStatus === 'granted';
     } catch (error) {
       console.error('Lỗi khi xin quyền GPS:', error);
       return false;
@@ -29,8 +25,8 @@ export class LocationLib {
         accuracy: Location.Accuracy.High,
       });
       return {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
+        lat: location.coords.latitude,
+        lng: location.coords.longitude,
       };
     } catch (error) {
       console.error('Lỗi khi lấy vị trí hiện tại:', error);
@@ -54,8 +50,8 @@ export class LocationLib {
         },
         (location) => {
           callback({
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
+            lat: location.coords.latitude,
+            lng: location.coords.longitude,
           });
         }
       );

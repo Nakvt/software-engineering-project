@@ -1,17 +1,13 @@
 import React from 'react';
-import { SafeAreaView, StyleSheet } from 'react-native';
-import { AdminDashboardScreen } from './src/presentation/screens/AdminDashboardScreen';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AppNavigator } from './src/presentation/navigation/AppNavigator';
 
 export default function App() {
   return (
-    <SafeAreaView style={styles.container}>
-      <AdminDashboardScreen />
-    </SafeAreaView>
+    <SafeAreaProvider>
+      <StatusBar style="dark" />
+      <AppNavigator />
+    </SafeAreaProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});

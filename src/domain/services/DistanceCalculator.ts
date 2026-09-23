@@ -21,10 +21,10 @@ export class DistanceCalculator {
     coord1: Coordinates,
     coord2: Coordinates
   ): number {
-    const lat1Rad = this.toRadians(coord1.latitude);
-    const lat2Rad = this.toRadians(coord2.latitude);
-    const deltaLatRad = this.toRadians(coord2.latitude - coord1.latitude);
-    const deltaLonRad = this.toRadians(coord2.longitude - coord1.longitude);
+    const lat1Rad = this.toRadians(coord1.lat);
+    const lat2Rad = this.toRadians(coord2.lat);
+    const deltaLatRad = this.toRadians(coord2.lat - coord1.lat);
+    const deltaLonRad = this.toRadians(coord2.lng - coord1.lng);
 
     // Công thức Haversine
     const a =
