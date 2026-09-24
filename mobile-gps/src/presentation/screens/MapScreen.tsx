@@ -1,8 +1,10 @@
-import React, { useMemo } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Dimensions } from 'react-native';
-import MapView, { Marker, Circle, Polyline, PROVIDER_DEFAULT } from 'react-native-maps';
+import React, { useMemo, useRef } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { useGeofencing } from '../hooks/useGeofencing';
+import { POI } from '../../domain/models/POI';
+import { Tour } from '../../domain/models/Tour';
 import { MOCK_POIS } from '../../domain/models/mockPOI';
 import { MOCK_TOURS } from '../../domain/models/mockTour';
 import { TopBar } from '../components/TopBar';
@@ -10,36 +12,74 @@ import { MiniPlayer } from '../components/MiniPlayer';
 
 export const MapScreen: React.FC<any> = ({ navigation, route }) => {
   const { activePOI, hasPermission, simulateLocation } = useGeofencing(MOCK_POIS, 'vi-VN');
+  const webViewRef = useRef<WebView>(null);
 
-  // Lấy tourId nếu người dùng chuyển từ màn hình Tours sang
   const selectedTourId = route?.params?.selectedTourId;
   const activeTour = useMemo(
-    () => MOCK_TOURS.find((t) => t.id === selectedTourId),
+    () => MOCK_TOURS.find((t: Tour) => t.id === selectedTourId),
     [selectedTourId]
   );
 
-  // Lọc và sắp xếp các POI thuộc Tour đang chọn theo đúng thứ tự lộ trình
   const tourPOIs = useMemo(() => {
     if (!activeTour) return [];
     return activeTour.poiIds
-      .map((id) => MOCK_POIS.find((poi) => poi.id === id))
-      .filter((poi): poi is typeof MOCK_POIS[0] => poi !== undefined);
+      .map((id: string) => MOCK_POIS.find((poi: POI) => poi.id === id))
+      .filter((poi): poi is POI => poi !== undefined);
   }, [activeTour]);
 
-  // Tạo danh sách tọa độ để vẽ đường Polyline nối các điểm
-  const polylineCoordinates = useMemo(() => {
-    return tourPOIs.map((poi) => ({
-      latitude: poi.location.lat,
-      longitude: poi.location.lng,
-    }));
-  }, [tourPOIs]);
+  // Tạo HTML chứa bản đồ Leaflet + OpenStreetMap hoàn chỉnh không cần API Key
+  const htmlContent = useMemo(() => {
+    const poisJson = JSON.stringify(MOCK_POIS);
+    const tourPoisJson = JSON.stringify(tourPOIs);
 
-  const initialRegion = {
-    latitude: 16.099123,
-    longitude: 108.277456,
-    latitudeDelta: 0.005,
-    longitudeDelta: 0.005,
-  };
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <style>
+          body, html, #map { margin: 0; padding: 0; width: 100%; height: 100%; }
+        </style>
+      </head>
+      <body>
+        <div id="map"></div>
+        <script>
+          var map = L.map('map', { zoomControl: false }).setView([16.099123, 108.277456], 17);
+          
+          L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '© OpenStreetMap France'
+          }).addTo(map);
+
+          var pois = ${poisJson};
+          var tourPois = ${tourPoisJson};
+
+          // Vẽ Markers & Circles
+          pois.forEach(function(poi, index) {
+            var marker = L.marker([poi.location.lat, poi.location.lng]).addTo(map);
+            marker.bindPopup("<b>" + poi.name + "</b><br>Bán kính: " + poi.radius + "m");
+            
+            L.circle([poi.location.lat, poi.location.lng], {
+              color: '#007AFF',
+              fillColor: '#007AFF',
+              fillOpacity: 0.15,
+              radius: poi.radius
+            }).addTo(map);
+          });
+
+          // Vẽ đường Tour Polyline nếu có
+          if (tourPois.length > 1) {
+            var latlngs = tourPois.map(function(p) { return [p.location.lat, p.location.lng]; });
+            var polyline = L.polyline(latlngs, { color: '#007AFF', weight: 4 }).addTo(map);
+            map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+          }
+        </script>
+      </body>
+      </html>
+    `;
+  }, [tourPOIs]);
 
   if (!hasPermission) {
     return (
@@ -60,7 +100,7 @@ export const MapScreen: React.FC<any> = ({ navigation, route }) => {
         onSearchChange={(text) => console.log('Tìm kiếm:', text)}
       />
 
-      {/* 2. Thanh hiển thị Tour đang kích hoạt */}
+      {/* 2. Banner hiển thị khi có Tour */}
       {activeTour && (
         <View style={styles.tourBanner}>
           <View style={styles.tourBannerInfo}>
@@ -78,63 +118,21 @@ export const MapScreen: React.FC<any> = ({ navigation, route }) => {
         </View>
       )}
 
-      {/* 3. Bản đồ */}
-      <MapView
-        style={styles.map}
-        provider={PROVIDER_DEFAULT}
-        initialRegion={initialRegion}
-        showsUserLocation={true}
-      >
-        {/* Đường nối giữa các điểm trong Tour */}
-        {polylineCoordinates.length > 1 && (
-          <Polyline
-            coordinates={polylineCoordinates}
-            strokeColor="#007AFF"
-            strokeWidth={4}
-            lineDashPattern={[0]}
-          />
-        )}
-
-        {/* Danh sách Markers */}
-        {MOCK_POIS.map((poi) => {
-          // Kiểm tra xem POI có nằm trong tour đang chọn không
-          const tourStepIndex = activeTour ? activeTour.poiIds.indexOf(poi.id) : -1;
-          const isPartOfTour = tourStepIndex !== -1;
-
-          return (
-            <React.Fragment key={poi.id}>
-              <Marker
-                coordinate={{
-                  latitude: poi.location.lat,
-                  longitude: poi.location.lng,
-                }}
-                title={isPartOfTour ? `[Điểm ${tourStepIndex + 1}] ${poi.name}` : poi.name}
-                description={`Bán kính: ${poi.radius}m`}
-                pinColor={activePOI?.id === poi.id ? 'green' : isPartOfTour ? 'indigo' : 'red'}
-              />
-              <Circle
-                center={{
-                  latitude: poi.location.lat,
-                  longitude: poi.location.lng,
-                }}
-                radius={poi.radius}
-                strokeColor={
-                  isPartOfTour ? 'rgba(0, 122, 255, 0.8)' : 'rgba(255, 99, 71, 0.6)'
-                }
-                fillColor={
-                  isPartOfTour ? 'rgba(0, 122, 255, 0.2)' : 'rgba(255, 99, 71, 0.15)'
-                }
-              />
-            </React.Fragment>
-          );
-        })}
-      </MapView>
+      {/* 3. Bản đồ hiển thị qua Leaflet OpenStreetMap */}
+      <WebView
+        ref={webViewRef}
+        originWhitelist={['*']}
+        source={{ html: htmlContent }}
+        style={StyleSheet.absoluteFill}
+        javaScriptEnabled={true}
+        domStorageEnabled={true}
+      />
 
       {/* 4. Thanh nút bấm mô phỏng vị trí GPS */}
       <View style={styles.mockControls}>
         <Text style={styles.mockLabel}>Mô phỏng vị trí GPS:</Text>
         <View style={styles.mockButtonsRow}>
-          {MOCK_POIS.map((poi, index) => (
+          {MOCK_POIS.map((poi: POI, index: number) => (
             <TouchableOpacity
               key={poi.id}
               style={styles.mockButton}
@@ -170,10 +168,6 @@ export const MapScreen: React.FC<any> = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  map: {
-    width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height,
   },
   centerContainer: {
     flex: 1,
@@ -224,6 +218,7 @@ const styles = StyleSheet.create({
     bottom: 110,
     left: 16,
     right: 16,
+    zIndex: 10,
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     padding: 8,
     borderRadius: 12,
