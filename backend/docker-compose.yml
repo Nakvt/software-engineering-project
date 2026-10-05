@@ -4,11 +4,11 @@ services:
     container_name: tour-guide-postgis
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: mysecretpassword
-      POSTGRES_DB: tour_guide_db
+      POSTGRES_USER: ${DB_USER:?Set DB_USER in backend/.env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in backend/.env}
+      POSTGRES_DB: ${DB_NAME:?Set DB_NAME in backend/.env}
     volumes:
       - postgis_data:/var/lib/postgresql/data
 

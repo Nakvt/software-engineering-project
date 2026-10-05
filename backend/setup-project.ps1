@@ -66,14 +66,16 @@ const pool = new Pool({
 module.exports = pool;
 '@ | Set-Content -Path 'src/config/db.js' -Encoding utf8
 
+if (-not (Test-Path '.env')) {
 @'
 PORT=3000
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=poi_db
+DB_NAME=tour_guide_db
 DB_USER=postgres
-DB_PASSWORD=change_me
+DB_PASSWORD=
 '@ | Set-Content -Path '.env' -Encoding utf8
+}
 
 @'
 node_modules/
