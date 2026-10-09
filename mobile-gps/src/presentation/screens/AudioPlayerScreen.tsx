@@ -3,9 +3,9 @@ import { StyleSheet, View, Text, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { Accent } from '../../domain/models/POI';
 import { AudioLib } from '../../libs/audio';
 
+type Accent = 'north' | 'central' | 'south';
 type Props = NativeStackScreenProps<RootStackParamList, 'AudioPlayer'>;
 
 export const AudioPlayerScreen: React.FC<Props> = ({ route, navigation }) => {
