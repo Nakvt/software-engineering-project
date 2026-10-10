@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Modal, Image } from 'react-native';
 import { MOCK_POIS, MOCK_ANALYTICS } from '../../data/mockCmsData';
 
 const MOCK_TOURS = [
@@ -10,9 +10,38 @@ const MOCK_TOURS = [
 export const AdminDashboardScreen = () => {
   const [activeTab, setActiveTab] = useState<'cms' | 'tours' | 'analytics'>('cms');
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+  const [selectedPoiForQR, setSelectedPoiForQR] = useState<any | null>(null);
 
-  const toggleAudio = (id: string) => {
-    setPlayingAudioId(playingAudioId === id ? null : id);
+  // Hàm phát giọng đọc thật bằng Web Speech API (TTS) của trình duyệt
+  const handleTextToSpeech = (item: any) => {
+    if (!('speechSynthesis' in window)) {
+      alert('Trình duyệt của bạn không hỗ trợ tính năng đọc văn bản (TTS).');
+      return;
+    }
+
+    if (playingAudioId === item.id) {
+      window.speechSynthesis.cancel();
+      setPlayingAudioId(null);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    const textToRead = item.script || `Địa điểm ${item.name}. ${item.region || 'Giọng Bắc'}. Chào mừng du khách đến tham quan.`;
+    const utterance = new SpeechSynthesisUtterance(textToRead);
+    utterance.lang = 'vi-VN';
+    utterance.rate = 0.95;
+
+    utterance.onend = () => {
+      setPlayingAudioId(null);
+    };
+
+    utterance.onerror = () => {
+      setPlayingAudioId(null);
+    };
+
+    window.speechSynthesis.speak(utterance);
+    setPlayingAudioId(item.id);
   };
 
   return (
@@ -58,70 +87,28 @@ export const AdminDashboardScreen = () => {
           <ScrollView style={styles.section} showsVerticalScrollIndicator={false}>
             <Text style={styles.title}>Quản lý Trung tâm Địa điểm POI & Thuyết minh</Text>
 
-            {/* FORM THÊM / CHỈNH SỬA POI ĐẦY ĐỦ TRƯỜNG DỮ LIỆU */}
+            {/* FORM THÊM / CHỈNH SỬA POI */}
             <View style={styles.formCard}>
               <Text style={styles.formTitle}>✨ Thêm / Chỉnh sửa POI (Tọa độ, Bán kính, Hình ảnh, TTS, Audio)</Text>
               
               <View style={styles.rowInput}>
-                <TextInput 
-                  style={[styles.input, { flex: 2 }]} 
-                  placeholder="Tên địa điểm POI (VD: Điện Tam Thế)..." 
-                  placeholderTextColor="#9CA3AF"
-                />
-                <TextInput 
-                  style={[styles.input, { flex: 1.5 }]} 
-                  placeholder="URL Hình ảnh đại diện..." 
-                  placeholderTextColor="#9CA3AF"
-                />
+                <TextInput style={[styles.input, { flex: 2 }]} placeholder="Tên địa điểm POI (VD: Điện Tam Thế)..." placeholderTextColor="#9CA3AF" />
+                <TextInput style={[styles.input, { flex: 1.5 }]} placeholder="URL Hình ảnh đại diện..." placeholderTextColor="#9CA3AF" />
               </View>
               
               <View style={styles.rowInput}>
-                <TextInput 
-                  style={[styles.input, { flex: 1 }]} 
-                  placeholder="Vĩ độ (Latitude)..." 
-                  placeholderTextColor="#9CA3AF"
-                />
-                <TextInput 
-                  style={[styles.input, { flex: 1 }]} 
-                  placeholder="Kinh độ (Longitude)..." 
-                  placeholderTextColor="#9CA3AF"
-                />
-                <TextInput 
-                  style={[styles.input, { flex: 1 }]} 
-                  placeholder="Bán kính Geofence (m)..." 
-                  placeholderTextColor="#9CA3AF"
-                />
-                <TextInput 
-                  style={[styles.input, { flex: 1 }]} 
-                  placeholder="Mức ưu tiên Audio Queue (1-5)..." 
-                  placeholderTextColor="#9CA3AF"
-                />
+                <TextInput style={[styles.input, { flex: 1 }]} placeholder="Vĩ độ (Latitude)..." placeholderTextColor="#9CA3AF" />
+                <TextInput style={[styles.input, { flex: 1 }]} placeholder="Kinh độ (Longitude)..." placeholderTextColor="#9CA3AF" />
+                <TextInput style={[styles.input, { flex: 1 }]} placeholder="Bán kính Geofence (m)..." placeholderTextColor="#9CA3AF" />
+                <TextInput style={[styles.input, { flex: 1 }]} placeholder="Mức ưu tiên Audio Queue (1-5)..." placeholderTextColor="#9CA3AF" />
               </View>
 
-              {/* Kịch bản TTS Multilingual & Giọng đọc Multi-accent */}
-              <TextInput 
-                style={[styles.input, { height: 50 }]} 
-                placeholder="Kịch bản thuyết minh văn bản (Text-to-Speech TTS)..." 
-                placeholderTextColor="#9CA3AF"
-                multiline
-              />
+              <TextInput style={[styles.input, { height: 50 }]} placeholder="Kịch bản thuyết minh văn bản (Text-to-Speech TTS)..." placeholderTextColor="#9CA3AF" multiline />
 
               <View style={styles.rowInput}>
-                <TextInput 
-                  style={[styles.input, { flex: 1 }]} 
-                  placeholder="Phương vị giọng đọc (Bắc / Trung / Nam)..." 
-                  placeholderTextColor="#9CA3AF"
-                />
-                <TextInput 
-                  style={[styles.input, { flex: 1 }]} 
-                  placeholder="File Audio thu sẵn (.mp3)..." 
-                  placeholderTextColor="#9CA3AF"
-                />
-                <TextInput 
-                  style={[styles.input, { flex: 1 }]} 
-                  placeholder="Ngôn ngữ (Tiếng Việt / English)..." 
-                  placeholderTextColor="#9CA3AF"
-                />
+                <TextInput style={[styles.input, { flex: 1 }]} placeholder="Phương vị giọng đọc (Bắc / Trung / Nam)..." placeholderTextColor="#9CA3AF" />
+                <TextInput style={[styles.input, { flex: 1 }]} placeholder="File Audio thu sẵn (.mp3)..." placeholderTextColor="#9CA3AF" />
+                <TextInput style={[styles.input, { flex: 1 }]} placeholder="Ngôn ngữ (Tiếng Việt / English)..." placeholderTextColor="#9CA3AF" />
               </View>
 
               <TouchableOpacity style={styles.primaryBtn}>
@@ -134,7 +121,7 @@ export const AdminDashboardScreen = () => {
               <Text style={[styles.cell, styles.headerText, { flex: 1.5 }]}>Tên POI</Text>
               <Text style={[styles.cell, styles.headerText, { flex: 1.2 }]}>Tọa độ GPS / Bán kính</Text>
               <Text style={[styles.cell, styles.headerText]}>Giọng đọc</Text>
-              <Text style={[styles.cell, styles.headerText, { flex: 1.5 }]}>Audio / Kịch bản TTS</Text>
+              <Text style={[styles.cell, styles.headerText, { flex: 1 }]}>Audio / Kịch bản TTS</Text>
               <Text style={[styles.cell, styles.headerText, { textAlign: 'center' }]}>Mã QR / Preview</Text>
             </View>
 
@@ -145,16 +132,20 @@ export const AdminDashboardScreen = () => {
                   {item.latitude}, {item.longitude} ({item.radius}m)
                 </Text>
                 <Text style={styles.cell}><Text style={styles.badgeRegion}>{item.region || 'Bắc (TTS)'}</Text></Text>
-                <Text style={[styles.cell, styles.textMuted, { flex: 1.5 }]} numberOfLines={1}>
+                <Text style={[styles.cell, styles.textMuted, { flex: 1, marginRight: 12 }]} numberOfLines={1}>
                   {item.script || 'Bài thuyết minh tự động qua GPS/Geofence...'}
                 </Text>
                 <View style={[styles.cell, { flexDirection: 'row', justifyContent: 'center', gap: 6 }]}>
-                  <TouchableOpacity style={styles.qrBtn}>
+                  <TouchableOpacity 
+                    style={styles.qrBtn}
+                    onPress={() => setSelectedPoiForQR(item)}
+                  >
                     <Text style={styles.qrBtnText}>📷 QR Code</Text>
                   </TouchableOpacity>
+
                   <TouchableOpacity 
                     style={[styles.audioBtn, playingAudioId === item.id && styles.audioBtnPlaying]}
-                    onPress={() => toggleAudio(item.id)}
+                    onPress={() => handleTextToSpeech(item)}
                   >
                     <Text style={[styles.audioBtnText, playingAudioId === item.id && styles.audioBtnTextPlaying]}>
                       {playingAudioId === item.id ? '⏸ Dừng' : '▶ Nghe'}
@@ -215,7 +206,6 @@ export const AdminDashboardScreen = () => {
               </View>
             </View>
 
-            {/* PHẦN HIỂN THỊ SPATIAL HEATMAP */}
             <View style={styles.heatmapBox}>
               <View style={styles.heatmapBadge}>
                 <Text style={styles.heatmapBadgeText}>SPATIAL HEATMAP LIVE</Text>
@@ -226,6 +216,43 @@ export const AdminDashboardScreen = () => {
           </ScrollView>
         )}
       </View>
+
+      {/* MODAL MÃ QR CODE THẬT - ĐẸP & QUÉT ĐƯỢC 100% */}
+      <Modal
+        visible={selectedPoiForQR !== null}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Mã QR Địa Điểm</Text>
+            <Text style={styles.modalSubtitle}>{selectedPoiForQR?.name}</Text>
+            
+            <View style={styles.qrContainer}>
+              {selectedPoiForQR && (
+                <Image
+                  style={styles.qrImage}
+                  source={{
+                    uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=poi://${selectedPoiForQR.id}`,
+                  }}
+                />
+              )}
+            </View>
+
+            <Text style={styles.qrHintText}>
+              Mã POI: <Text style={{ fontWeight: '700', color: '#2563EB' }}>{selectedPoiForQR?.id}</Text>
+            </Text>
+            <Text style={styles.qrSubHint}>Bật ứng dụng Mobile để quét mã trực tiếp mà không cần đợi GPS</Text>
+
+            <TouchableOpacity 
+              style={styles.closeModalBtn}
+              onPress={() => setSelectedPoiForQR(null)}
+            >
+              <Text style={styles.closeModalText}>Đóng</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -276,4 +303,16 @@ const styles = StyleSheet.create({
   heatmapBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
   heatmapText: { color: '#334155', fontWeight: '700', fontSize: 16, marginBottom: 8 },
   heatmapSubtext: { color: '#64748B', fontSize: 13, textAlign: 'center' },
+  
+  /* STYLES MỚI CHO POPUP QR CODE CHUẨN ĐẸP */
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { width: 340, backgroundColor: '#FFFFFF', borderRadius: 20, padding: 24, alignItems: 'center', elevation: 10 },
+  modalTitle: { fontSize: 20, fontWeight: '800', color: '#0F172A', marginBottom: 4 },
+  modalSubtitle: { fontSize: 13, color: '#64748B', textAlign: 'center', marginBottom: 16 },
+  qrContainer: { padding: 12, backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, marginBottom: 12 },
+  qrImage: { width: 180, height: 180, borderRadius: 8 },
+  qrHintText: { fontSize: 13, color: '#334155', marginBottom: 4 },
+  qrSubHint: { fontSize: 11, color: '#94A3B8', textAlign: 'center', marginBottom: 20, paddingHorizontal: 10 },
+  closeModalBtn: { backgroundColor: '#0F172A', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 10, width: '100%', alignItems: 'center' },
+  closeModalText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 }
 });
