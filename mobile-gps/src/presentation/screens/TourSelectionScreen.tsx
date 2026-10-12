@@ -1,173 +1,98 @@
-import React from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  FlatList,
-  Image,
-  TouchableOpacity,
-  SafeAreaView,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { MOCK_TOURS } from '../../domain/models/mockTour';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Tour } from '../../domain/models/Tour';
+import { tourService } from '../../domain/services/tourService';
 
 interface Props {
   navigation: any;
 }
 
 export const TourSelectionScreen: React.FC<Props> = ({ navigation }) => {
-  const handleSelectTour = (tour: Tour) => {
-    console.log('Đã chọn tour:', tour.name);
-    // Chuyển hướng người dùng về Tab Bản đồ để bắt đầu đi theo lộ trình
-    navigation.navigate('Map');
+  const [tours, setTours] = useState<Tour[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // 1. Nạp danh sách tour qua Service (có fallback)
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchTours = async () => {
+      try {
+        const data = await tourService.getAllTours();
+        if (isMounted) {
+          setTours(data);
+        }
+      } catch (err) {
+        console.error('Lỗi khi tải danh sách Tours:', err);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchTours();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // 2. Render từng thẻ lộ trình
+  const renderItem = ({ item }: { item: Tour }) => {
+    // Tự động lấy thời lượng (hỗ trợ cả duration, durationMinutes hoặc estimatedDuration)
+    const durationDisplay =
+      (item as any).duration ||
+      (item as any).durationMinutes ||
+      (item as any).estimatedDuration ||
+      30;
+
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => {
+          // Điều hướng linh hoạt sang Map
+          navigation.navigate('Map', { selectedTour: item });
+        }}
+      >
+        <Text style={styles.title}>{item.name}</Text>
+        <Text style={styles.desc}>{item.description}</Text>
+        <View style={styles.infoRow}>
+          <Text style={styles.badge}>⏱ {durationDisplay} phút</Text>
+          <Text style={styles.badge}>📍 {item.poiIds?.length || 0} điểm dừng</Text>
+        </View>
+      </TouchableOpacity>
+    );
   };
 
-  const renderTourCard = ({ item }: { item: Tour }) => (
-    <View style={styles.card}>
-      <Image source={{ uri: item.imageUrl }} style={styles.cardImage} resizeMode="cover" />
-
-      <View style={styles.cardBody}>
-        <Text style={styles.tourTitle}>{item.name}</Text>
-        <Text style={styles.tourDesc} numberOfLines={2}>
-          {item.description}
-        </Text>
-
-        {/* Khối thông số tóm tắt: Số điểm, Thời gian, Chiều dài */}
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Ionicons name="location-outline" size={16} color="#007AFF" />
-            <Text style={styles.statText}>{item.poiIds.length} POIs</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Ionicons name="time-outline" size={16} color="#007AFF" />
-            <Text style={styles.statText}>~{item.durationMinutes} phút</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Ionicons name="walk-outline" size={16} color="#007AFF" />
-            <Text style={styles.statText}>{item.distanceKm} km</Text>
-          </View>
-        </View>
-
-        {/* Nút bấm chọn tour */}
-        <TouchableOpacity
-          style={styles.selectBtn}
-          activeOpacity={0.8}
-          onPress={() => handleSelectTour(item)}
-        >
-          <Text style={styles.selectBtnText}>Bắt đầu Tour</Text>
-          <Ionicons name="arrow-forward" size={18} color="#ffffff" />
-        </TouchableOpacity>
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#007AFF" />
       </View>
-    </View>
-  );
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Chọn Tour Tham Quan</Text>
-        <Text style={styles.headerSubtitle}>
-          Lựa chọn lộ trình phù hợp với thời gian của bạn
-        </Text>
-      </View>
-
+    <View style={styles.container}>
+      <Text style={styles.header}>Chọn Lộ Trình Tham Quan</Text>
       <FlatList
-        data={MOCK_TOURS}
+        data={tours}
         keyExtractor={(item) => item.id}
-        renderItem={renderTourCard}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
+        renderItem={renderItem}
+        contentContainerStyle={styles.list}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1c1c1e',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#8e8e93',
-    marginTop: 4,
-  },
-  listContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 18,
-    marginBottom: 20,
-    overflow: 'hidden',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-  },
-  cardImage: {
-    width: '100%',
-    height: 160,
-  },
-  cardBody: {
-    padding: 16,
-  },
-  tourTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1c1c1e',
-    marginBottom: 6,
-  },
-  tourDesc: {
-    fontSize: 14,
-    color: '#636366',
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#f2f2f7',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#3a3a3c',
-    marginLeft: 6,
-  },
-  selectBtn: {
-    backgroundColor: '#007AFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  selectBtnText: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: 'bold',
-    marginRight: 6,
-  },
+  container: { flex: 1, backgroundColor: '#F8F9FA', paddingTop: 20 },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  header: { fontSize: 20, fontWeight: 'bold', marginHorizontal: 16, marginBottom: 12, color: '#1A1A1A' },
+  list: { paddingHorizontal: 16, paddingBottom: 20 },
+  card: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 12, elevation: 2, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
+  title: { fontSize: 16, fontWeight: 'bold', color: '#333' },
+  desc: { fontSize: 13, color: '#666', marginTop: 4, lineHeight: 18 },
+  infoRow: { flexDirection: 'row', marginTop: 12, gap: 10 },
+  badge: { fontSize: 12, color: '#007AFF', backgroundColor: '#EBF3FF', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, overflow: 'hidden' },
 });
