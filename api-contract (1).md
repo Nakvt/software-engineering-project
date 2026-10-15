@@ -7,7 +7,7 @@ Tất cả các API đều trả về kết quả theo cấu trúc chuẩn:
   "success": true,
   "data": {},
   "error": null,
-  "timestamp": "2026-09-15T06:29:23Z"
+  "timestamp": "2026-10-15T13:30:00Z"
 }
 ```
 
@@ -88,13 +88,89 @@ Tất cả các API đều trả về kết quả theo cấu trúc chuẩn:
 
 ---
 
-## 3. Nhóm API cho Web CMS Quản trị & Thống kê
+## 3. Nhóm API Xác thực CMS (Authentication - Refresh Token)
 
-### 3.1. Quản lý POI (CRUD)
+### 3.1. Đăng nhập Admin
+* **Endpoint:** `POST /api/v1/auth/login`
+* **Request Body:**
+```json
+{
+  "username": "admin",
+  "password": "Password123@"
+}
+```
+* **Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsIn...",
+    "refreshToken": "d8e3c1a9-4b2e-4f76-88a2-72c502b489aa",
+    "expiresIn": 900,
+    "user": {
+      "id": "1e7c5b2a-883a-4a87-9bc1-3a1b2c3d4e5f",
+      "username": "admin",
+      "fullName": "Quản Trị Viên",
+      "role": "admin"
+    }
+  },
+  "error": null,
+  "timestamp": "2026-10-15T13:30:00Z"
+}
+```
+
+### 3.2. Cấp lại Access Token mới (Refresh Token)
+* **Endpoint:** `POST /api/v1/auth/refresh-token`
+* **Request Body:**
+```json
+{
+  "refreshToken": "d8e3c1a9-4b2e-4f76-88a2-72c502b489aa"
+}
+```
+* **Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsIn...",
+    "expiresIn": 900
+  },
+  "error": null,
+  "timestamp": "2026-10-15T13:30:00Z"
+}
+```
+
+### 3.3. Đăng xuất
+* **Endpoint:** `POST /api/v1/auth/logout`
+* **Headers:** `Authorization: Bearer <accessToken>`
+* **Request Body:**
+```json
+{
+  "refreshToken": "d8e3c1a9-4b2e-4f76-88a2-72c502b489aa"
+}
+```
+* **Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Đăng xuất thành công"
+  },
+  "error": null,
+  "timestamp": "2026-10-15T13:30:00Z"
+}
+```
+
+---
+
+## 4. Nhóm API cho Web CMS Quản trị & Thống kê
+*(Yêu cầu Header bắt buộc: `Authorization: Bearer <accessToken>`)*
+
+### 4.1. Quản lý POI (CRUD)
 * `POST /api/v1/admin/pois`: Tạo mới POI kèm tọa độ, bán kính và nội dung.
 * `PUT /api/v1/admin/pois/:id`: Cập nhật thông tin tọa độ, bán kính POI.
 * `POST /api/v1/admin/pois/:id/contents`: Tải lên file ghi âm hoặc cập nhật script TTS theo ngôn ngữ.
 
-### 3.2. API Heatmap & Thống kê Analytics
+### 4.2. API Heatmap & Thống kê Analytics
 * `GET /api/v1/admin/analytics/heatmap`: Trả về mảng tọa độ kèm trọng số `[ [lat, lng, count], ... ]` để vẽ heatmap.
 * `GET /api/v1/admin/analytics/dashboard`: Thống kê Top POI nghe nhiều nhất, thời lượng nghe trung bình.
