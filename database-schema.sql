@@ -87,5 +87,29 @@ CREATE TABLE play_history (
     played_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 9. Bảng tài khoản quản trị viên CMS
+CREATE TABLE admins (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    full_name VARCHAR(100),
+    role VARCHAR(20) DEFAULT 'admin' CHECK (role IN ('super_admin', 'admin', 'editor')),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 10. Bảng lưu Refresh Token quản lý phiên đăng nhập
+CREATE TABLE admin_refresh_tokens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    admin_id UUID NOT NULL REFERENCES admins(id) ON DELETE CASCADE,
+    token VARCHAR(500) NOT NULL UNIQUE,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Index giúp tìm kiếm và kiểm tra token nhanh hơn
+CREATE INDEX idx_refresh_token ON admin_refresh_tokens(token);
 -- Chỉ mục tối ưu truy vấn tọa độ
 CREATE INDEX idx_pois_location ON pois (latitude, longitude);
