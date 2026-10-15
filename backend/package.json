@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test test/poi.routes.test.js test/tracking-analytics.routes.test.js test/admin-poi.routes.test.js test/admin-analytics.routes.test.js",
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "lint": "eslint .",
