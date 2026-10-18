@@ -2,15 +2,70 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Modal, Image } from 'react-native';
 import { MOCK_POIS, MOCK_ANALYTICS } from '../../data/mockCmsData';
 
-const MOCK_TOURS = [
-  { id: 'T-01', name: 'Tour Di Sản Bái Đính 1 Ngày', poisCount: 5, status: 'Hoạt động' },
-  { id: 'T-02', name: 'Tour Khám Phá Tâm Linh Mới', poisCount: 3, status: 'Bản nháp' },
-];
-
 export const AdminDashboardScreen = () => {
   const [activeTab, setActiveTab] = useState<'cms' | 'tours' | 'analytics'>('cms');
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
   const [selectedPoiForQR, setSelectedPoiForQR] = useState<any | null>(null);
+
+  // --- 1. STATE QUẢN LÝ DANH SÁCH POI (CHO PHÉP THÊM MỚI TRỰC TIẾP) ---
+  const [poiList, setPoiList] = useState(MOCK_POIS);
+  const [newPoi, setNewPoi] = useState({
+    name: '',
+    image: '',
+    latitude: '',
+    longitude: '',
+    radius: '',
+    priority: '',
+    script: '',
+    region: 'Bắc (TTS)',
+    audioFile: '',
+    language: 'Tiếng Việt'
+  });
+
+  // --- 2. STATE QUẢN LÝ DANH SÁCH TOUR (CHO PHÉP THÊM MỚI TRỰC TIẾP) ---
+  const [tourList, setTourList] = useState([
+    { id: 'T-01', name: 'Tour Di Sản Bái Đính 1 Ngày', poisCount: 5, status: 'Hoạt động' },
+    { id: 'T-02', name: 'Tour Khám Phá Tâm Linh Mới', poisCount: 3, status: 'Bản nháp' },
+  ]);
+  const [newTourName, setNewTourName] = useState('');
+
+  // Hàm xử lý thêm POI mới (ép kiểu latitude & longitude sang number)
+  const handleAddPoi = () => {
+    if (!newPoi.name) {
+      alert('Vui lòng nhập tên địa điểm POI!');
+      return;
+    }
+    const createdPoi = {
+      id: `P-0${poiList.length + 1}`,
+      name: newPoi.name,
+      latitude: Number(newPoi.latitude) || 16.1000,
+      longitude: Number(newPoi.longitude) || 108.2700,
+      radius: Number(newPoi.radius) || 30,
+      region: newPoi.region,
+      script: newPoi.script || 'Bài thuyết minh tự động qua GPS/Geofence...',
+    };
+    setPoiList([createdPoi, ...poiList]);
+    // Reset form
+    setNewPoi({ name: '', image: '', latitude: '', longitude: '', radius: '', priority: '', script: '', region: 'Bắc (TTS)', audioFile: '', language: 'Tiếng Việt' });
+    alert('Thêm địa điểm POI thành công!');
+  };
+
+  // Hàm xử lý thêm Tour mới
+  const handleAddTour = () => {
+    if (!newTourName) {
+      alert('Vui lòng nhập tên lộ trình tour!');
+      return;
+    }
+    const createdTour = {
+      id: `T-0${tourList.length + 1}`,
+      name: newTourName,
+      poisCount: 3,
+      status: 'Bản nháp'
+    };
+    setTourList([createdTour, ...tourList]);
+    setNewTourName('');
+    alert('Khởi tạo lộ trình Tour thành công!');
+  };
 
   // Hàm phát giọng đọc thật bằng Web Speech API (TTS) của trình duyệt
   const handleTextToSpeech = (item: any) => {
@@ -27,18 +82,13 @@ export const AdminDashboardScreen = () => {
 
     window.speechSynthesis.cancel();
 
-    const textToRead = item.script || `Địa điểm ${item.name}. ${item.region || 'Giọng Bắc'}. Chào mừng du khách đến tham quan.`;
+    const textToRead = item.script || `Địa điểm ${item.name}. Chào mừng du khách đến tham quan.`;
     const utterance = new SpeechSynthesisUtterance(textToRead);
     utterance.lang = 'vi-VN';
     utterance.rate = 0.95;
 
-    utterance.onend = () => {
-      setPlayingAudioId(null);
-    };
-
-    utterance.onerror = () => {
-      setPlayingAudioId(null);
-    };
+    utterance.onend = () => setPlayingAudioId(null);
+    utterance.onerror = () => setPlayingAudioId(null);
 
     window.speechSynthesis.speak(utterance);
     setPlayingAudioId(item.id);
@@ -87,36 +137,97 @@ export const AdminDashboardScreen = () => {
           <ScrollView style={styles.section} showsVerticalScrollIndicator={false}>
             <Text style={styles.title}>Quản lý Trung tâm Địa điểm POI & Thuyết minh</Text>
 
-            {/* FORM THÊM / CHỈNH SỬA POI */}
+            {/* FORM NHẬP LIỆU THÊM POI TRỰC TIẾP */}
             <View style={styles.formCard}>
               <Text style={styles.formTitle}>✨ Thêm / Chỉnh sửa POI (Tọa độ, Bán kính, Hình ảnh, TTS, Audio)</Text>
               
               <View style={styles.rowInput}>
-                <TextInput style={[styles.input, { flex: 2 }]} placeholder="Tên địa điểm POI (VD: Điện Tam Thế)..." placeholderTextColor="#9CA3AF" />
-                <TextInput style={[styles.input, { flex: 1.5 }]} placeholder="URL Hình ảnh đại diện..." placeholderTextColor="#9CA3AF" />
+                <TextInput 
+                  style={[styles.input, { flex: 2 }]} 
+                  placeholder="Tên địa điểm POI (VD: Điện Tam Thế)..." 
+                  placeholderTextColor="#9CA3AF" 
+                  value={newPoi.name}
+                  onChangeText={(val) => setNewPoi({ ...newPoi, name: val })}
+                />
+                <TextInput 
+                  style={[styles.input, { flex: 1.5 }]} 
+                  placeholder="URL Hình ảnh đại diện..." 
+                  placeholderTextColor="#9CA3AF" 
+                  value={newPoi.image}
+                  onChangeText={(val) => setNewPoi({ ...newPoi, image: val })}
+                />
               </View>
               
               <View style={styles.rowInput}>
-                <TextInput style={[styles.input, { flex: 1 }]} placeholder="Vĩ độ (Latitude)..." placeholderTextColor="#9CA3AF" />
-                <TextInput style={[styles.input, { flex: 1 }]} placeholder="Kinh độ (Longitude)..." placeholderTextColor="#9CA3AF" />
-                <TextInput style={[styles.input, { flex: 1 }]} placeholder="Bán kính Geofence (m)..." placeholderTextColor="#9CA3AF" />
-                <TextInput style={[styles.input, { flex: 1 }]} placeholder="Mức ưu tiên Audio Queue (1-5)..." placeholderTextColor="#9CA3AF" />
+                <TextInput 
+                  style={[styles.input, { flex: 1 }]} 
+                  placeholder="Vĩ độ (Latitude)..." 
+                  placeholderTextColor="#9CA3AF" 
+                  value={newPoi.latitude}
+                  onChangeText={(val) => setNewPoi({ ...newPoi, latitude: val })}
+                />
+                <TextInput 
+                  style={[styles.input, { flex: 1 }]} 
+                  placeholder="Kinh độ (Longitude)..." 
+                  placeholderTextColor="#9CA3AF" 
+                  value={newPoi.longitude}
+                  onChangeText={(val) => setNewPoi({ ...newPoi, longitude: val })}
+                />
+                <TextInput 
+                  style={[styles.input, { flex: 1 }]} 
+                  placeholder="Bán kính Geofence (m)..." 
+                  placeholderTextColor="#9CA3AF" 
+                  value={newPoi.radius}
+                  onChangeText={(val) => setNewPoi({ ...newPoi, radius: val })}
+                />
+                <TextInput 
+                  style={[styles.input, { flex: 1 }]} 
+                  placeholder="Mức ưu tiên Audio Queue (1-5)..." 
+                  placeholderTextColor="#9CA3AF" 
+                  value={newPoi.priority}
+                  onChangeText={(val) => setNewPoi({ ...newPoi, priority: val })}
+                />
               </View>
 
-              <TextInput style={[styles.input, { height: 50 }]} placeholder="Kịch bản thuyết minh văn bản (Text-to-Speech TTS)..." placeholderTextColor="#9CA3AF" multiline />
+              <TextInput 
+                style={[styles.input, { height: 50 }]} 
+                placeholder="Kịch bản thuyết minh văn bản (Text-to-Speech TTS)..." 
+                placeholderTextColor="#9CA3AF" 
+                multiline 
+                value={newPoi.script}
+                onChangeText={(val) => setNewPoi({ ...newPoi, script: val })}
+              />
 
               <View style={styles.rowInput}>
-                <TextInput style={[styles.input, { flex: 1 }]} placeholder="Phương vị giọng đọc (Bắc / Trung / Nam)..." placeholderTextColor="#9CA3AF" />
-                <TextInput style={[styles.input, { flex: 1 }]} placeholder="File Audio thu sẵn (.mp3)..." placeholderTextColor="#9CA3AF" />
-                <TextInput style={[styles.input, { flex: 1 }]} placeholder="Ngôn ngữ (Tiếng Việt / English)..." placeholderTextColor="#9CA3AF" />
+                <TextInput 
+                  style={[styles.input, { flex: 1 }]} 
+                  placeholder="Phương vị giọng đọc (Bắc / Trung / Nam)..." 
+                  placeholderTextColor="#9CA3AF" 
+                  value={newPoi.region}
+                  onChangeText={(val) => setNewPoi({ ...newPoi, region: val })}
+                />
+                <TextInput 
+                  style={[styles.input, { flex: 1 }]} 
+                  placeholder="File Audio thu sẵn (.mp3)..." 
+                  placeholderTextColor="#9CA3AF" 
+                  value={newPoi.audioFile}
+                  onChangeText={(val) => setNewPoi({ ...newPoi, audioFile: val })}
+                />
+                <TextInput 
+                  style={[styles.input, { flex: 1 }]} 
+                  placeholder="Ngôn ngữ (Tiếng Việt / English)..." 
+                  placeholderTextColor="#9CA3AF" 
+                  value={newPoi.language}
+                  onChangeText={(val) => setNewPoi({ ...newPoi, language: val })}
+                />
               </View>
 
-              <TouchableOpacity style={styles.primaryBtn}>
+              <TouchableOpacity style={styles.primaryBtn} onPress={handleAddPoi}>
                 <Text style={styles.btnText}>+ Lưu Cấu Hình Địa Điểm POI</Text>
               </TouchableOpacity>
             </View>
 
-            {/* DANH SÁCH BẢNG POI TRỰC QUAN */}
+            {/* DANH SÁCH BẢNG POI HIỂN THỊ DỮ LIỆU ĐỘNG */}
             <View style={[styles.tableRow, styles.tableHeader]}>
               <Text style={[styles.cell, styles.headerText, { flex: 1.5 }]}>Tên POI</Text>
               <Text style={[styles.cell, styles.headerText, { flex: 1.2 }]}>Tọa độ GPS / Bán kính</Text>
@@ -125,7 +236,7 @@ export const AdminDashboardScreen = () => {
               <Text style={[styles.cell, styles.headerText, { textAlign: 'center' }]}>Mã QR / Preview</Text>
             </View>
 
-            {MOCK_POIS.map((item: any, idx: number) => (
+            {poiList.map((item: any, idx: number) => (
               <View key={item.id} style={[styles.tableRow, idx % 2 === 1 && styles.tableRowEven]}>
                 <Text style={[styles.cell, styles.fontMedium, { flex: 1.5 }]}>{item.name}</Text>
                 <Text style={[styles.cell, styles.textMuted, { flex: 1.2 }]}>
@@ -159,10 +270,17 @@ export const AdminDashboardScreen = () => {
           <ScrollView style={styles.section} showsVerticalScrollIndicator={false}>
             <Text style={styles.title}>Quản lý Lộ trình Tour & Liên kết Mã QR</Text>
             
+            {/* FORM NHẬP LIỆU TOUR TRỰC TIẾP */}
             <View style={styles.formCard}>
               <Text style={styles.formTitle}>✨ Tạo Tour Du Lịch & Liên Kết Danh Mục POI</Text>
-              <TextInput style={styles.input} placeholder="Tên lộ trình tour (VD: Tour Di Sản Bái Đính 1 Ngày)..." placeholderTextColor="#9CA3AF" />
-              <TouchableOpacity style={styles.primaryBtn}>
+              <TextInput 
+                style={styles.input} 
+                placeholder="Tên lộ trình tour (VD: Tour Di Sản Bái Đính 1 Ngày)..." 
+                placeholderTextColor="#9CA3AF" 
+                value={newTourName}
+                onChangeText={(val) => setNewTourName(val)}
+              />
+              <TouchableOpacity style={styles.primaryBtn} onPress={handleAddTour}>
                 <Text style={styles.btnText}>+ Khởi Tạo Lộ Trình Tour</Text>
               </TouchableOpacity>
             </View>
@@ -174,7 +292,7 @@ export const AdminDashboardScreen = () => {
               <Text style={[styles.cell, styles.headerText, { textAlign: 'center' }]}>Trạng thái</Text>
             </View>
 
-            {MOCK_TOURS.map((tour, idx) => (
+            {tourList.map((tour, idx) => (
               <View key={tour.id} style={[styles.tableRow, idx % 2 === 1 && styles.tableRowEven]}>
                 <Text style={[styles.cell, styles.fontCode]}>{tour.id}</Text>
                 <Text style={[styles.cell, styles.fontMedium, { flex: 2 }]}>{tour.name}</Text>
@@ -217,7 +335,7 @@ export const AdminDashboardScreen = () => {
         )}
       </View>
 
-      {/* MODAL MÃ QR CODE THẬT - ĐẸP & QUÉT ĐƯỢC 100% */}
+      {/* MODAL MÃ QR CODE THẬT */}
       <Modal
         visible={selectedPoiForQR !== null}
         transparent={true}
@@ -242,7 +360,7 @@ export const AdminDashboardScreen = () => {
             <Text style={styles.qrHintText}>
               Mã POI: <Text style={{ fontWeight: '700', color: '#2563EB' }}>{selectedPoiForQR?.id}</Text>
             </Text>
-            <Text style={styles.qrSubHint}>Bật ứng dụng Mobile để quét mã trực tiếp mà không cần đợi GPS</Text>
+            <Text style={styles.qrSubHint}>Bật ứng dụng Mobile để quét mã trực tiếp</Text>
 
             <TouchableOpacity 
               style={styles.closeModalBtn}
@@ -303,8 +421,6 @@ const styles = StyleSheet.create({
   heatmapBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
   heatmapText: { color: '#334155', fontWeight: '700', fontSize: 16, marginBottom: 8 },
   heatmapSubtext: { color: '#64748B', fontSize: 13, textAlign: 'center' },
-  
-  /* STYLES MỚI CHO POPUP QR CODE CHUẨN ĐẸP */
   modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', alignItems: 'center' },
   modalContent: { width: 340, backgroundColor: '#FFFFFF', borderRadius: 20, padding: 24, alignItems: 'center', elevation: 10 },
   modalTitle: { fontSize: 20, fontWeight: '800', color: '#0F172A', marginBottom: 4 },
