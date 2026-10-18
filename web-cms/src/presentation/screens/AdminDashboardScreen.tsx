@@ -432,3 +432,4 @@ const styles = StyleSheet.create({
   closeModalBtn: { backgroundColor: '#0F172A', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 10, width: '100%', alignItems: 'center' },
   closeModalText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 }
 });
+// update dashboard
