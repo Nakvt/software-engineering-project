@@ -11,3 +11,12 @@ app.get('/health', (_request, response) => {
 });
 
 module.exports = app;
+
+const authRoutes = require('./routes/authRoutes');
+const authMiddleware = require('./middlewares/authMiddleware');
+
+app.use('/api/v1/auth', authRoutes);
+
+// Đặt middleware bảo vệ trước các route admin CMS
+app.use('/api/v1/admin', authMiddleware, adminRoutes);
+
