@@ -1,18 +1,35 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import * as Location from 'expo-location';
 import { Coordinates } from '../../domain/models/Location';
 import { POI } from '../../domain/models/POI';
 import { GeofenceService } from '../../domain/services/GeofenceService';
+import { poiService } from '../../domain/services/poiService';
 import { LocationLib } from '../../libs/location';
 import { AudioLib } from '../../libs/audio';
-import * as Location from 'expo-location';
 
-export function useGeofencing(pois: POI[], defaultLanguage: string = 'vi-VN') {
+export function useGeofencing(initialPois: POI[] = [], defaultLanguage: string = 'vi-VN') {
+  const [pois, setPois] = useState<POI[]>(initialPois);
   const [currentLocation, setCurrentLocation] = useState<Coordinates | null>(null);
   const [activePOI, setActivePOI] = useState<POI | null>(null);
   const [hasPermission, setHasPermission] = useState<boolean>(false);
   const subscriptionRef = useRef<Location.LocationSubscription | null>(null);
 
-  // Hàm cốt lõi: Đánh giá vị trí và kích hoạt phát âm thanh
+  // 1. Tải danh sách POIs qua Service (Ưu tiên Backend API, tự động Fallback sang Mock)
+  useEffect(() => {
+    let isMounted = true;
+    const fetchPOIs = async () => {
+      const data = await poiService.getAllPOIs();
+      if (isMounted) {
+        setPois(data);
+      }
+    };
+    fetchPOIs();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // 2. Hàm cốt lõi: Đánh giá vị trí và kích hoạt phát âm thanh
   const checkAndTriggerPOI = useCallback(
     (coords: Coordinates) => {
       console.log('Đang kiểm tra tọa độ:', coords);
@@ -23,7 +40,7 @@ export function useGeofencing(pois: POI[], defaultLanguage: string = 'vi-VN') {
         console.log('>>> KÍCH HOẠT POI:', poi.name);
         setActivePOI(poi);
 
-        // Ưu tiên đọc TTS hoặc audio
+        // Ưu tiên đọc giọng đọc TTS hoặc phát file audio URL
         if (poi.audio?.ttsScript) {
           AudioLib.playTTS(poi.audio.ttsScript, defaultLanguage);
         } else if (poi.audio?.audioUrl) {
@@ -36,7 +53,7 @@ export function useGeofencing(pois: POI[], defaultLanguage: string = 'vi-VN') {
     [pois, defaultLanguage]
   );
 
-  // Hàm mô phỏng vị trí khi bấm nút trên giao diện
+  // 3. Hàm mô phỏng vị trí khi bấm các nút test trên giao diện
   const simulateLocation = useCallback(
     (coords: Coordinates) => {
       setCurrentLocation(coords);
@@ -45,10 +62,12 @@ export function useGeofencing(pois: POI[], defaultLanguage: string = 'vi-VN') {
     [checkAndTriggerPOI]
   );
 
+  // 4. Quản lý vòng đời GPS: Xin quyền, bật Background tracking và lắng nghe vị trí Foreground
   useEffect(() => {
     let isMounted = true;
 
     async function initTracking() {
+      // Xin cả quyền Foreground lẫn Background
       const granted = await LocationLib.requestPermissions();
       if (!isMounted) return;
       setHasPermission(granted);
@@ -58,17 +77,33 @@ export function useGeofencing(pois: POI[], defaultLanguage: string = 'vi-VN') {
         return;
       }
 
-      const initialPos = await LocationLib.getCurrentPosition();
+      // Kích hoạt dịch vụ GPS chạy ngầm
+      await LocationLib.startBackgroundTracking();
+
+      // Lấy vị trí ban đầu
+      const initialPos = await LocationLib.getCurrentLocation();
       if (initialPos && isMounted) {
         setCurrentLocation(initialPos);
         checkAndTriggerPOI(initialPos);
       }
 
-      const sub = await LocationLib.watchPosition((coords) => {
-        if (!isMounted) return;
-        setCurrentLocation(coords);
-        checkAndTriggerPOI(coords);
-      });
+      // Lắng nghe thay đổi vị trí trực tiếp từ expo-location khi mở màn hình
+      const sub = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 2000,
+          distanceInterval: 2,
+        },
+        (loc) => {
+          if (!isMounted) return;
+          const coords: Coordinates = {
+            lat: loc.coords.latitude,
+            lng: loc.coords.longitude,
+          };
+          setCurrentLocation(coords);
+          checkAndTriggerPOI(coords);
+        }
+      );
 
       subscriptionRef.current = sub;
     }
@@ -88,6 +123,7 @@ export function useGeofencing(pois: POI[], defaultLanguage: string = 'vi-VN') {
     currentLocation,
     activePOI,
     hasPermission,
-    simulateLocation, // Trả về hàm mô phỏng này cho nút bấm
+    simulateLocation,
+    pois, // Trả về danh sách POIs động để MapScreen vẽ Marker
   };
 }
