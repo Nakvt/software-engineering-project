@@ -8,7 +8,7 @@ export interface VoiceOption {
 
 export class AudioLib {
   /**
-   * Lấy danh sách giọng đọc có sẵn trên máy
+   * Lấy danh sách các giọng đọc hỗ trợ trên thiết bị
    */
   static async getSupportedVoices(): Promise<VoiceOption[]> {
     try {
@@ -25,14 +25,15 @@ export class AudioLib {
   }
 
   /**
-   * Phát Text-to-Speech bằng bộ máy giọng nói của máy
+   * Phát Text-to-Speech (TTS) theo kịch bản văn bản và mã ngôn ngữ
    */
-  static playTTS(
+  static async playTTS(
     text: string,
     languageCode: string = 'vi-VN',
     onFinish?: () => void
-  ): void {
-    this.stopAll();
+  ): Promise<void> {
+    // Ngắt câu đọc cũ trước khi cất giọng đọc câu mới
+    await this.stopAll();
 
     Speech.speak(text, {
       language: languageCode,
@@ -44,21 +45,31 @@ export class AudioLib {
   }
 
   /**
-   * Tạm thời giả lập phát file mp3 bằng TTS trong môi trường Expo Go
+   * Giả lập phát thuyết minh từ URL/File thu âm bằng TTS Fallback
    */
   static async playAudio(url: string, onFinish?: () => void): Promise<void> {
-    console.log('Đang phát file audio (giả lập):', url);
-    // Khi chưa build native, ta dùng TTS để báo hiệu thay thế
-    this.playTTS('Đang phát thuyết minh từ file thu âm.', 'vi-VN', onFinish);
+    console.log('Đang phát audio từ URL (chế độ TTS Fallback):', url);
+    await this.playTTS('Đang phát thuyết minh từ file thu âm.', 'vi-VN', onFinish);
   }
 
   /**
-   * Dừng âm thanh đang phát
+   * Dừng toàn bộ âm thanh đang đọc trên thiết bị
    */
   static async stopAll(): Promise<void> {
-    const isSpeaking = await Speech.isSpeakingAsync();
-    if (isSpeaking) {
-      await Speech.stop();
+    try {
+      const isSpeaking = await Speech.isSpeakingAsync();
+      if (isSpeaking) {
+        await Speech.stop();
+      }
+    } catch (error) {
+      console.error('Lỗi khi dừng âm thanh TTS:', error);
     }
+  }
+
+  /**
+   * Alias phương thức stop() giúp tương thích 100% với AudioQueueService
+   */
+  static async stop(): Promise<void> {
+    await this.stopAll();
   }
 }
