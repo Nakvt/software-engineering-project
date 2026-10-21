@@ -4,20 +4,12 @@ import { Coordinates } from '../../domain/models/Location';
 import { POI, MultiLangString } from '../../domain/models/POI';
 import { GeofenceService } from '../../domain/services/GeofenceService';
 import { poiService } from '../../domain/services/poiService';
+import { AudioQueueService } from '../../domain/services/AudioQueueService';
 import { LocationLib } from '../../libs/location';
 import { AudioLib } from '../../libs/audio';
 
 // Định nghĩa danh sách các mã ngôn ngữ hỗ trợ
 export type SupportedLanguage = 'vi' | 'en' | 'ja' | 'zh' | 'ko';
-
-// Cấu hình mã Locale chuẩn cho Expo Speech / TTS Engine
-const LANGUAGE_LOCALE_MAP: Record<SupportedLanguage, string> = {
-  vi: 'vi-VN',
-  en: 'en-US',
-  ja: 'ja-JP',
-  zh: 'zh-CN',
-  ko: 'ko-KR',
-};
 
 /**
  * Hàm hỗ trợ lấy chuỗi văn bản phù hợp theo ngôn ngữ được chọn
@@ -57,7 +49,7 @@ export function useGeofencing(
     };
   }, []);
 
-  // 2. Đánh giá vị trí và phát thuyết minh đa ngôn ngữ
+  // 2. Đánh giá vị trí và đẩy vào AudioQueueService thay vì phát trực tiếp
   const checkAndTriggerPOI = useCallback(
     (coords: Coordinates) => {
       console.log('Đang kiểm tra tọa độ:', coords);
@@ -65,21 +57,13 @@ export function useGeofencing(
 
       if (evaluation.shouldTrigger && evaluation.poi) {
         const poi = evaluation.poi;
-        // Trích xuất tên di tích theo ngôn ngữ được chọn để ghi log
         const poiName = getTranslation(poi.name, selectedLanguage);
         console.log(`>>> KÍCH HOẠT POI: ${poiName} (Ngôn ngữ: ${selectedLanguage})`);
+        
         setActivePOI(poi);
 
-        // Trích xuất kịch bản TTS theo ngôn ngữ được chọn
-        const ttsScript = getTranslation(poi.audio?.ttsScript, selectedLanguage);
-
-        if (ttsScript) {
-          const locale = LANGUAGE_LOCALE_MAP[selectedLanguage] || 'vi-VN';
-          console.log(`🗣 [TTS ${selectedLanguage}]: ${ttsScript}`);
-          AudioLib.playTTS(ttsScript, locale);
-        } else if (poi.audio?.audioUrl) {
-          AudioLib.playAudio(poi.audio.audioUrl);
-        }
+        // Đẩy POI vào Hàng chờ thuyết minh để xử lý Cooldown & Priority
+        AudioQueueService.enqueue(poi, selectedLanguage);
       } else {
         console.log('Không có POI nào trong bán kính hoặc đang trong Cooldown');
       }
@@ -145,7 +129,8 @@ export function useGeofencing(
       if (subscriptionRef.current) {
         subscriptionRef.current.remove();
       }
-      AudioLib.stopAll();
+      // Dọn sạch hàng chờ âm thanh khi unmount
+      AudioQueueService.clearQueue();
     };
   }, [checkAndTriggerPOI]);
 
