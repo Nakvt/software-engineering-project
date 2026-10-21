@@ -73,7 +73,23 @@ Tất cả các API đều trả về kết quả theo cấu trúc chuẩn:
 }
 ```
 
-### 2.4. Ghi nhận nhật ký nghe (Analytics Log)
+### 2.4. Tạo phiên người dùng
+* **Endpoint:** `POST /api/v1/sessions`
+* **Request Body:**
+```json
+{
+  "deviceType": "mobile"
+}
+```
+`deviceType` là tùy chọn, nếu có phải là chuỗi tối đa 50 ký tự. Có thể gửi body rỗng hoặc không gửi body.
+* **Response:** Trả về HTTP 201 với `data` chứa `sessionId` (UUID) được server tạo; dùng giá trị này cho các request tracking và analytics.
+```json
+{
+  "sessionId": "a73985d2-f67a-42c2-8419-58b9f36fba7c"
+}
+```
+
+### 2.5. Ghi nhận nhật ký nghe (Analytics Log)
 * **Endpoint:** `POST /api/v1/analytics/listen-event`
 * **Request Body:**
 ```json
