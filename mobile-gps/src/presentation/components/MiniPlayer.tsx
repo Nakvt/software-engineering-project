@@ -1,24 +1,40 @@
 import React from 'react';
 import { StyleSheet, View, Text, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { POI } from '../../domain/models/POI';
+import { POI, MultiLangString } from '../../domain/models/POI';
 
 interface MiniPlayerProps {
   poi: POI | null;
   distanceMeters?: number;
   isPlaying?: boolean;
+  selectedLanguage?: string;
   onPressCard?: () => void;
   onPressSelectTour?: () => void;
+  onPressReplay?: () => void; // Thêm callback kích hoạt phát lại audio
+}
+
+/**
+ * Hàm hỗ trợ trích xuất tên di tích an toàn dạng string theo ngôn ngữ
+ */
+function getDisplayName(name?: string | MultiLangString, lang: string = 'vi'): string {
+  if (!name) return '';
+  if (typeof name === 'string') return name;
+  return name[lang as keyof MultiLangString] || name.vi || '';
 }
 
 export const MiniPlayer: React.FC<MiniPlayerProps> = ({
   poi,
   distanceMeters = 15,
   isPlaying = true,
+  selectedLanguage = 'vi',
   onPressCard,
   onPressSelectTour,
+  onPressReplay,
 }) => {
   if (!poi) return null;
+
+  // Trích xuất tên di tích dạng string an toàn 100%
+  const poiName = getDisplayName(poi.name, selectedLanguage);
 
   return (
     <TouchableOpacity
@@ -34,14 +50,14 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
             'https://images.unsplash.com/photo-1548013146-72479768bada?q=80&w=300',
         }}
         style={styles.thumbnail}
-        resizeMode='cover'        
+        resizeMode="cover"
       />
 
       {/* 2. Thông tin tên POI và khoảng cách */}
       <View style={styles.infoContainer}>
         <Text style={styles.badge}>POI</Text>
         <Text style={styles.title} numberOfLines={1}>
-          Near: {poi.name} ({Math.round(distanceMeters)}m)
+          Near: {poiName} ({Math.round(distanceMeters)}m)
         </Text>
 
         {/* Trạng thái Auto-Playing */}
@@ -57,7 +73,15 @@ export const MiniPlayer: React.FC<MiniPlayerProps> = ({
         </View>
       </View>
 
-      {/* 3. Nút Chọn Tour */}
+      {/* 3. Nút Đọc Lại (Replay Audio) */}
+      <TouchableOpacity
+        style={styles.replayButton}
+        onPress={onPressReplay}
+      >
+        <Ionicons name="refresh-circle" size={32} color="#007AFF" />
+      </TouchableOpacity>
+
+      {/* 4. Nút Chọn Tour */}
       <TouchableOpacity
         style={styles.tourButton}
         onPress={onPressSelectTour}
@@ -119,12 +143,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 4,
   },
+  replayButton: {
+    paddingHorizontal: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   tourButton: {
     backgroundColor: '#007AFF',
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 10,
-    marginLeft: 8,
+    marginLeft: 6,
   },
   tourButtonText: {
     color: '#ffffff',
