@@ -1,13 +1,18 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Modal, Image } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
 import { MOCK_POIS, MOCK_ANALYTICS } from '../../data/mockCmsData';
 
-export const AdminDashboardScreen = () => {
-  const [activeTab, setActiveTab] = useState<'cms' | 'tours' | 'analytics'>('cms');
+interface AdminDashboardScreenProps {
+  onLogout?: () => void;
+}
+
+export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLogout }) => {
+  const [activeTab, setActiveTab] = useState<'cms' | 'tours' | 'analytics'>('analytics');
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
   const [selectedPoiForQR, setSelectedPoiForQR] = useState<any | null>(null);
 
-  // --- 1. STATE QUẢN LÝ DANH SÁCH POI (CHO PHÉP THÊM MỚI TRỰC TIẾP) ---
+  const [activeUsersCount] = useState<number>(1);
+  const [totalStreams, setTotalStreams] = useState<number>(MOCK_ANALYTICS.totalStreams);
+
   const [poiList, setPoiList] = useState(MOCK_POIS);
   const [newPoi, setNewPoi] = useState({
     name: '',
@@ -22,14 +27,60 @@ export const AdminDashboardScreen = () => {
     language: 'Tiếng Việt'
   });
 
-  // --- 2. STATE QUẢN LÝ DANH SÁCH TOUR (CHO PHÉP THÊM MỚI TRỰC TIẾP) ---
   const [tourList, setTourList] = useState([
     { id: 'T-01', name: 'Tour Di Sản Bái Đính 1 Ngày', poisCount: 5, status: 'Hoạt động' },
     { id: 'T-02', name: 'Tour Khám Phá Tâm Linh Mới', poisCount: 3, status: 'Bản nháp' },
   ]);
   const [newTourName, setNewTourName] = useState('');
 
-  // Hàm xử lý thêm POI mới (ép kiểu latitude & longitude sang number)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    if (activeTab === 'analytics') {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < canvas.width; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = 0; y < canvas.height; y += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+
+      const points = [
+        { x: 250, y: 140, r: 70, intensity: 0.7 },
+        { x: 550, y: 220, r: 90, intensity: 0.9 },
+        { x: 800, y: 160, r: 60, intensity: 0.5 },
+        { x: 400, y: 300, r: 80, intensity: 0.8 },
+      ];
+
+      points.forEach((p) => {
+        const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
+        gradient.addColorStop(0, `rgba(239, 68, 68, ${p.intensity})`);
+        gradient.addColorStop(0.5, `rgba(245, 158, 11, ${p.intensity * 0.6})`);
+        gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+  }, [activeTab]);
+
   const handleAddPoi = () => {
     if (!newPoi.name) {
       alert('Vui lòng nhập tên địa điểm POI!');
@@ -45,12 +96,10 @@ export const AdminDashboardScreen = () => {
       script: newPoi.script || 'Bài thuyết minh tự động qua GPS/Geofence...',
     };
     setPoiList([createdPoi, ...poiList]);
-    // Reset form
     setNewPoi({ name: '', image: '', latitude: '', longitude: '', radius: '', priority: '', script: '', region: 'Bắc (TTS)', audioFile: '', language: 'Tiếng Việt' });
     alert('Thêm địa điểm POI thành công!');
   };
 
-  // Hàm xử lý thêm Tour mới
   const handleAddTour = () => {
     if (!newTourName) {
       alert('Vui lòng nhập tên lộ trình tour!');
@@ -67,368 +116,212 @@ export const AdminDashboardScreen = () => {
     alert('Khởi tạo lộ trình Tour thành công!');
   };
 
-  // Hàm phát giọng đọc thật bằng Web Speech API (TTS) của trình duyệt
   const handleTextToSpeech = (item: any) => {
     if (!('speechSynthesis' in window)) {
-      alert('Trình duyệt của bạn không hỗ trợ tính năng đọc văn bản (TTS).');
+      alert('Trình duyệt không hỗ trợ Web Speech API.');
       return;
     }
-
     if (playingAudioId === item.id) {
       window.speechSynthesis.cancel();
       setPlayingAudioId(null);
       return;
     }
-
     window.speechSynthesis.cancel();
+    
+    setTotalStreams((prev) => prev + 1);
 
-    const textToRead = item.script || `Địa điểm ${item.name}. Chào mừng du khách đến tham quan.`;
-    const utterance = new SpeechSynthesisUtterance(textToRead);
+    const utterance = new SpeechSynthesisUtterance(item.script || 'Thuyết minh tự động');
     utterance.lang = 'vi-VN';
-    utterance.rate = 0.95;
-
     utterance.onend = () => setPlayingAudioId(null);
-    utterance.onerror = () => setPlayingAudioId(null);
-
     window.speechSynthesis.speak(utterance);
     setPlayingAudioId(item.id);
   };
 
   return (
-    <View style={styles.container}>
+    <div style={{ display: 'flex', width: '100vw', height: '100vh', margin: 0, padding: 0, boxSizing: 'border-box', backgroundColor: '#F8FAFC', fontFamily: 'Segoe UI, sans-serif', overflow: 'hidden' }}>
       {/* Sidebar Navigation */}
-      <View style={styles.sidebar}>
-        <View style={styles.logoContainer}>
-          <View style={styles.logoDot} />
-          <Text style={styles.logo}>Tourism CMS</Text>
-        </View>
+      <div style={{ width: '280px', height: '100vh', backgroundColor: '#FFFFFF', padding: '24px 20px', borderRight: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '32px' }}>
+          <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#2563EB' }} />
+          <h2 style={{ color: '#0F172A', fontSize: '18px', fontWeight: 800, margin: 0 }}>Tourism CMS</h2>
+        </div>
 
-        <TouchableOpacity
-          style={[styles.menuItem, activeTab === 'cms' && styles.menuActive]}
-          onPress={() => setActiveTab('cms')}
+        <button
+          onClick={() => setActiveTab('cms')}
+          style={{ padding: '12px 16px', borderRadius: '8px', marginBottom: '8px', border: 'none', textAlign: 'left', cursor: 'pointer', backgroundColor: activeTab === 'cms' ? '#EFF6FF' : 'transparent', color: activeTab === 'cms' ? '#2563EB' : '#64748B', fontWeight: activeTab === 'cms' ? 700 : 600, fontSize: '13px' }}
         >
-          <Text style={[styles.menuText, activeTab === 'cms' && styles.menuTextActive]}>
-            📍 Quản lý POI & Nội dung
-          </Text>
-        </TouchableOpacity>
+          📍 Quản lý POI & Nội dung
+        </button>
 
-        <TouchableOpacity
-          style={[styles.menuItem, activeTab === 'tours' && styles.menuActive]}
-          onPress={() => setActiveTab('tours')}
+        <button
+          onClick={() => setActiveTab('tours')}
+          style={{ padding: '12px 16px', borderRadius: '8px', marginBottom: '8px', border: 'none', textAlign: 'left', cursor: 'pointer', backgroundColor: activeTab === 'tours' ? '#EFF6FF' : 'transparent', color: activeTab === 'tours' ? '#2563EB' : '#64748B', fontWeight: activeTab === 'tours' ? 700 : 600, fontSize: '13px' }}
         >
-          <Text style={[styles.menuText, activeTab === 'tours' && styles.menuTextActive]}>
-            🗺️ Quản lý Tour & QR Code
-          </Text>
-        </TouchableOpacity>
+          🗺️ Quản lý Tour & QR Code
+        </button>
 
-        <TouchableOpacity
-          style={[styles.menuItem, activeTab === 'analytics' && styles.menuActive]}
-          onPress={() => setActiveTab('analytics')}
+        <button
+          onClick={() => setActiveTab('analytics')}
+          style={{ padding: '12px 16px', borderRadius: '8px', marginBottom: '8px', border: 'none', textAlign: 'left', cursor: 'pointer', backgroundColor: activeTab === 'analytics' ? '#EFF6FF' : 'transparent', color: activeTab === 'analytics' ? '#2563EB' : '#64748B', fontWeight: activeTab === 'analytics' ? 700 : 600, fontSize: '13px' }}
         >
-          <Text style={[styles.menuText, activeTab === 'analytics' && styles.menuTextActive]}>
-            📊 Thống kê & Spatial Heatmap
-          </Text>
-        </TouchableOpacity>
-      </View>
+          📊 Thống kê & Spatial Heatmap
+        </button>
+
+        {onLogout && (
+          <button 
+            onClick={onLogout}
+            style={{ marginTop: 'auto', padding: '12px 16px', borderRadius: '8px', border: '1px solid #FCA5A5', backgroundColor: '#FEF2F2', color: '#DC2626', fontWeight: 700, fontSize: '13px', cursor: 'pointer', textAlign: 'left' }}
+          >
+            🚪 Đăng xuất hệ thống
+          </button>
+        )}
+      </div>
 
       {/* Main Content Area */}
-      <View style={styles.content}>
+      <div style={{ flex: 1, height: '100vh', padding: '32px', overflowY: 'auto', boxSizing: 'border-box' }}>
         {activeTab === 'cms' ? (
-          <ScrollView style={styles.section} showsVerticalScrollIndicator={false}>
-            <Text style={styles.title}>Quản lý Trung tâm Địa điểm POI & Thuyết minh</Text>
-
-            {/* FORM NHẬP LIỆU THÊM POI TRỰC TIẾP */}
-            <View style={styles.formCard}>
-              <Text style={styles.formTitle}>✨ Thêm / Chỉnh sửa POI (Tọa độ, Bán kính, Hình ảnh, TTS, Audio)</Text>
+          <div>
+            <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#0F172A', marginBottom: '24px', marginTop: 0 }}>Quản lý Trung tâm Địa điểm POI & Thuyết minh</h1>
+            
+            <div style={{ backgroundColor: '#FFFFFF', padding: '20px', borderRadius: '12px', marginBottom: '24px', border: '1px solid #E2E8F0' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#1E293B', marginTop: 0, marginBottom: '14px' }}>✨ Thêm / Chỉnh sửa POI (Tọa độ, Bán kính, Hình ảnh, TTS, Audio)</h3>
               
-              <View style={styles.rowInput}>
-                <TextInput 
-                  style={[styles.input, { flex: 2 }]} 
-                  placeholder="Tên địa điểm POI (VD: Điện Tam Thế)..." 
-                  placeholderTextColor="#9CA3AF" 
-                  value={newPoi.name}
-                  onChangeText={(val) => setNewPoi({ ...newPoi, name: val })}
-                />
-                <TextInput 
-                  style={[styles.input, { flex: 1.5 }]} 
-                  placeholder="URL Hình ảnh đại diện..." 
-                  placeholderTextColor="#9CA3AF" 
-                  value={newPoi.image}
-                  onChangeText={(val) => setNewPoi({ ...newPoi, image: val })}
-                />
-              </View>
-              
-              <View style={styles.rowInput}>
-                <TextInput 
-                  style={[styles.input, { flex: 1 }]} 
-                  placeholder="Vĩ độ (Latitude)..." 
-                  placeholderTextColor="#9CA3AF" 
-                  value={newPoi.latitude}
-                  onChangeText={(val) => setNewPoi({ ...newPoi, latitude: val })}
-                />
-                <TextInput 
-                  style={[styles.input, { flex: 1 }]} 
-                  placeholder="Kinh độ (Longitude)..." 
-                  placeholderTextColor="#9CA3AF" 
-                  value={newPoi.longitude}
-                  onChangeText={(val) => setNewPoi({ ...newPoi, longitude: val })}
-                />
-                <TextInput 
-                  style={[styles.input, { flex: 1 }]} 
-                  placeholder="Bán kính Geofence (m)..." 
-                  placeholderTextColor="#9CA3AF" 
-                  value={newPoi.radius}
-                  onChangeText={(val) => setNewPoi({ ...newPoi, radius: val })}
-                />
-                <TextInput 
-                  style={[styles.input, { flex: 1 }]} 
-                  placeholder="Mức ưu tiên Audio Queue (1-5)..." 
-                  placeholderTextColor="#9CA3AF" 
-                  value={newPoi.priority}
-                  onChangeText={(val) => setNewPoi({ ...newPoi, priority: val })}
-                />
-              </View>
+              <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
+                <input style={{ flex: 2, border: '1px solid #CBD5E1', borderRadius: '8px', padding: '10px', backgroundColor: '#F8FAFC', fontSize: '13px' }} placeholder="Tên địa điểm POI..." value={newPoi.name} onChange={(e) => setNewPoi({ ...newPoi, name: e.target.value })} />
+                <input style={{ flex: 1.5, border: '1px solid #CBD5E1', borderRadius: '8px', padding: '10px', backgroundColor: '#F8FAFC', fontSize: '13px' }} placeholder="URL Hình ảnh đại diện..." value={newPoi.image} onChange={(e) => setNewPoi({ ...newPoi, image: e.target.value })} />
+              </div>
 
-              <TextInput 
-                style={[styles.input, { height: 50 }]} 
-                placeholder="Kịch bản thuyết minh văn bản (Text-to-Speech TTS)..." 
-                placeholderTextColor="#9CA3AF" 
-                multiline 
-                value={newPoi.script}
-                onChangeText={(val) => setNewPoi({ ...newPoi, script: val })}
-              />
+              <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
+                <input style={{ flex: 1, border: '1px solid #CBD5E1', borderRadius: '8px', padding: '10px', backgroundColor: '#F8FAFC', fontSize: '13px' }} placeholder="Vĩ độ (Latitude)..." value={newPoi.latitude} onChange={(e) => setNewPoi({ ...newPoi, latitude: e.target.value })} />
+                <input style={{ flex: 1, border: '1px solid #CBD5E1', borderRadius: '8px', padding: '10px', backgroundColor: '#F8FAFC', fontSize: '13px' }} placeholder="Kinh độ (Longitude)..." value={newPoi.longitude} onChange={(e) => setNewPoi({ ...newPoi, longitude: e.target.value })} />
+                <input style={{ flex: 1, border: '1px solid #CBD5E1', borderRadius: '8px', padding: '10px', backgroundColor: '#F8FAFC', fontSize: '13px' }} placeholder="Bán kính Geofence (m)..." value={newPoi.radius} onChange={(e) => setNewPoi({ ...newPoi, radius: e.target.value })} />
+                <input style={{ flex: 1, border: '1px solid #CBD5E1', borderRadius: '8px', padding: '10px', backgroundColor: '#F8FAFC', fontSize: '13px' }} placeholder="Mức ưu tiên..." value={newPoi.priority} onChange={(e) => setNewPoi({ ...newPoi, priority: e.target.value })} />
+              </div>
 
-              <View style={styles.rowInput}>
-                <TextInput 
-                  style={[styles.input, { flex: 1 }]} 
-                  placeholder="Phương vị giọng đọc (Bắc / Trung / Nam)..." 
-                  placeholderTextColor="#9CA3AF" 
-                  value={newPoi.region}
-                  onChangeText={(val) => setNewPoi({ ...newPoi, region: val })}
-                />
-                <TextInput 
-                  style={[styles.input, { flex: 1 }]} 
-                  placeholder="File Audio thu sẵn (.mp3)..." 
-                  placeholderTextColor="#9CA3AF" 
-                  value={newPoi.audioFile}
-                  onChangeText={(val) => setNewPoi({ ...newPoi, audioFile: val })}
-                />
-                <TextInput 
-                  style={[styles.input, { flex: 1 }]} 
-                  placeholder="Ngôn ngữ (Tiếng Việt / English)..." 
-                  placeholderTextColor="#9CA3AF" 
-                  value={newPoi.language}
-                  onChangeText={(val) => setNewPoi({ ...newPoi, language: val })}
-                />
-              </View>
+              <textarea style={{ width: '100%', height: '50px', border: '1px solid #CBD5E1', borderRadius: '8px', padding: '10px', marginBottom: '12px', backgroundColor: '#F8FAFC', fontSize: '13px', boxSizing: 'border-box' }} placeholder="Kịch bản thuyết minh văn bản (TTS)..." value={newPoi.script} onChange={(e) => setNewPoi({ ...newPoi, script: e.target.value })} />
 
-              <TouchableOpacity style={styles.primaryBtn} onPress={handleAddPoi}>
-                <Text style={styles.btnText}>+ Lưu Cấu Hình Địa Điểm POI</Text>
-              </TouchableOpacity>
-            </View>
+              <button onClick={handleAddPoi} style={{ backgroundColor: '#2563EB', color: '#FFFFFF', padding: '12px', borderRadius: '8px', border: 'none', fontWeight: 700, fontSize: '14px', cursor: 'pointer', width: '100%' }}>+ Lưu Cấu Hình Địa Điểm POI</button>
+            </div>
 
-            {/* DANH SÁCH BẢNG POI HIỂN THỊ DỮ LIỆU ĐỘNG */}
-            <View style={[styles.tableRow, styles.tableHeader]}>
-              <Text style={[styles.cell, styles.headerText, { flex: 1.5 }]}>Tên POI</Text>
-              <Text style={[styles.cell, styles.headerText, { flex: 1.2 }]}>Tọa độ GPS / Bán kính</Text>
-              <Text style={[styles.cell, styles.headerText]}>Giọng đọc</Text>
-              <Text style={[styles.cell, styles.headerText, { flex: 1 }]}>Audio / Kịch bản TTS</Text>
-              <Text style={[styles.cell, styles.headerText, { textAlign: 'center' }]}>Mã QR / Preview</Text>
-            </View>
+            <div style={{ display: 'flex', backgroundColor: '#EFF6FF', padding: '14px', borderRadius: '8px', border: '1px solid #BFDBFE', fontWeight: 700, color: '#1D4ED8', fontSize: '13px', marginBottom: '6px' }}>
+              <div style={{ flex: 1.5 }}>Tên POI</div>
+              <div style={{ flex: 1.2 }}>Tọa độ GPS / Bán kính</div>
+              <div style={{ flex: 1 }}>Giọng đọc</div>
+              <div style={{ flex: 1 }}>Audio / Kịch bản TTS</div>
+              <div style={{ flex: 1, textAlign: 'center' }}>Mã QR / Preview</div>
+            </div>
 
             {poiList.map((item: any, idx: number) => (
-              <View key={item.id} style={[styles.tableRow, idx % 2 === 1 && styles.tableRowEven]}>
-                <Text style={[styles.cell, styles.fontMedium, { flex: 1.5 }]}>{item.name}</Text>
-                <Text style={[styles.cell, styles.textMuted, { flex: 1.2 }]}>
-                  {item.latitude}, {item.longitude} ({item.radius}m)
-                </Text>
-                <Text style={styles.cell}><Text style={styles.badgeRegion}>{item.region || 'Bắc (TTS)'}</Text></Text>
-                <Text style={[styles.cell, styles.textMuted, { flex: 1, marginRight: 12 }]} numberOfLines={1}>
-                  {item.script || 'Bài thuyết minh tự động qua GPS/Geofence...'}
-                </Text>
-                <View style={[styles.cell, { flexDirection: 'row', justifyContent: 'center', gap: 6 }]}>
-                  <TouchableOpacity 
-                    style={styles.qrBtn}
-                    onPress={() => setSelectedPoiForQR(item)}
-                  >
-                    <Text style={styles.qrBtnText}>📷 QR Code</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity 
-                    style={[styles.audioBtn, playingAudioId === item.id && styles.audioBtnPlaying]}
-                    onPress={() => handleTextToSpeech(item)}
-                  >
-                    <Text style={[styles.audioBtnText, playingAudioId === item.id && styles.audioBtnTextPlaying]}>
-                      {playingAudioId === item.id ? '⏸ Dừng' : '▶ Nghe'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
+              <div key={item.id} style={{ display: 'flex', backgroundColor: idx % 2 === 1 ? '#F8FAFC' : '#FFFFFF', padding: '14px', borderRadius: '8px', marginBottom: '6px', alignItems: 'center', border: '1px solid #F1F5F9', fontSize: '13px' }}>
+                <div style={{ flex: 1.5, fontWeight: 600, color: '#0F172A' }}>{item.name}</div>
+                <div style={{ flex: 1.2, color: '#64748B' }}>{item.latitude}, {item.longitude} ({item.radius}m)</div>
+                <div style={{ flex: 1 }}><span style={{ backgroundColor: '#FEF3C7', color: '#D97706', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: 700 }}>{item.region || 'Bắc (TTS)'}</span></div>
+                <div style={{ flex: 1, color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', paddingRight: '12px' }}>{item.script}</div>
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'center', gap: '6px' }}>
+                  <button onClick={() => setSelectedPoiForQR(item)} style={{ backgroundColor: '#F1F5F9', padding: '6px 10px', borderRadius: '16px', border: '1px solid #CBD5E1', fontSize: '11px', fontWeight: 700, cursor: 'pointer', color: '#475569' }}>📷 QR Code</button>
+                  <button onClick={() => handleTextToSpeech(item)} style={{ backgroundColor: playingAudioId === item.id ? '#FEF2F2' : '#EFF6FF', padding: '6px 10px', borderRadius: '16px', border: `1px solid ${playingAudioId === item.id ? '#EF4444' : '#2563EB'}`, fontSize: '11px', fontWeight: 700, cursor: 'pointer', color: playingAudioId === item.id ? '#DC2626' : '#2563EB' }}>
+                    {playingAudioId === item.id ? '⏸ Dừng' : '▶ Nghe'}
+                  </button>
+                </div>
+              </div>
             ))}
-          </ScrollView>
+          </div>
         ) : activeTab === 'tours' ? (
-          <ScrollView style={styles.section} showsVerticalScrollIndicator={false}>
-            <Text style={styles.title}>Quản lý Lộ trình Tour & Liên kết Mã QR</Text>
+          <div>
+            <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#0F172A', marginBottom: '24px', marginTop: 0 }}>Quản lý Lộ trình Tour & Liên kết Mã QR</h1>
             
-            {/* FORM NHẬP LIỆU TOUR TRỰC TIẾP */}
-            <View style={styles.formCard}>
-              <Text style={styles.formTitle}>✨ Tạo Tour Du Lịch & Liên Kết Danh Mục POI</Text>
-              <TextInput 
-                style={styles.input} 
-                placeholder="Tên lộ trình tour (VD: Tour Di Sản Bái Đính 1 Ngày)..." 
-                placeholderTextColor="#9CA3AF" 
-                value={newTourName}
-                onChangeText={(val) => setNewTourName(val)}
-              />
-              <TouchableOpacity style={styles.primaryBtn} onPress={handleAddTour}>
-                <Text style={styles.btnText}>+ Khởi Tạo Lộ Trình Tour</Text>
-              </TouchableOpacity>
-            </View>
+            <div style={{ backgroundColor: '#FFFFFF', padding: '20px', borderRadius: '12px', marginBottom: '24px', border: '1px solid #E2E8F0' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#1E293B', marginTop: 0, marginBottom: '14px' }}>✨ Tạo Tour Du Lịch & Liên Kết Danh Mục POI</h3>
+              <input style={{ width: '100%', border: '1px solid #CBD5E1', borderRadius: '8px', padding: '10px', marginBottom: '12px', backgroundColor: '#F8FAFC', fontSize: '13px', boxSizing: 'border-box' }} placeholder="Tên lộ trình tour..." value={newTourName} onChange={(e) => setNewTourName(e.target.value)} />
+              <button onClick={handleAddTour} style={{ backgroundColor: '#2563EB', color: '#FFFFFF', padding: '12px', borderRadius: '8px', border: 'none', fontWeight: 700, fontSize: '14px', cursor: 'pointer', width: '100%' }}>+ Khởi Tạo Lộ Trình Tour</button>
+            </div>
 
-            <View style={[styles.tableRow, styles.tableHeader]}>
-              <Text style={[styles.cell, styles.headerText]}>Mã Tour</Text>
-              <Text style={[styles.cell, styles.headerText, { flex: 2 }]}>Tên Tour</Text>
-              <Text style={[styles.cell, styles.headerText]}>Số POI gán</Text>
-              <Text style={[styles.cell, styles.headerText, { textAlign: 'center' }]}>Trạng thái</Text>
-            </View>
+            <div style={{ display: 'flex', backgroundColor: '#EFF6FF', padding: '14px', borderRadius: '8px', border: '1px solid #BFDBFE', fontWeight: 700, color: '#1D4ED8', fontSize: '13px', marginBottom: '6px' }}>
+              <div style={{ flex: 1 }}>Mã Tour</div>
+              <div style={{ flex: 2 }}>Tên Tour</div>
+              <div style={{ flex: 1 }}>Số POI gán</div>
+              <div style={{ flex: 1, textAlign: 'center' }}>Trạng thái</div>
+            </div>
 
             {tourList.map((tour, idx) => (
-              <View key={tour.id} style={[styles.tableRow, idx % 2 === 1 && styles.tableRowEven]}>
-                <Text style={[styles.cell, styles.fontCode]}>{tour.id}</Text>
-                <Text style={[styles.cell, styles.fontMedium, { flex: 2 }]}>{tour.name}</Text>
-                <Text style={styles.cell}>{tour.poisCount} điểm dừng</Text>
-                <View style={[styles.cell, { alignItems: 'center' }]}>
-                  <Text style={tour.status === 'Hoạt động' ? styles.badgeSuccess : styles.badgeWarning}>
-                    ● {tour.status}
-                  </Text>
-                </View>
-              </View>
+              <div key={tour.id} style={{ display: 'flex', backgroundColor: idx % 2 === 1 ? '#F8FAFC' : '#FFFFFF', padding: '14px', borderRadius: '8px', marginBottom: '6px', alignItems: 'center', border: '1px solid #F1F5F9', fontSize: '13px' }}>
+                <div style={{ flex: 1, fontFamily: 'monospace', fontWeight: 700, color: '#475569' }}>{tour.id}</div>
+                <div style={{ flex: 2, fontWeight: 600, color: '#0F172A' }}>{tour.name}</div>
+                <div style={{ flex: 1, color: '#334155' }}>{tour.poisCount} điểm dừng</div>
+                <div style={{ flex: 1, textAlign: 'center' }}>
+                  <span style={{ backgroundColor: tour.status === 'Hoạt động' ? '#D1FAE5' : '#FEF3C7', color: tour.status === 'Hoạt động' ? '#059669' : '#D97706', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 700 }}>● {tour.status}</span>
+                </div>
+              </div>
             ))}
-          </ScrollView>
+          </div>
         ) : (
-          <ScrollView style={styles.section} showsVerticalScrollIndicator={false}>
-            <Text style={styles.title}>Thống kê Lượt nghe (Ẩn danh) & Spatial Heatmap</Text>
+          <div>
+            <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#0F172A', marginBottom: '24px', marginTop: 0 }}>Thống kê Lượt nghe (Ẩn danh) & Spatial Heatmap</h1>
 
-            <View style={styles.statsContainer}>
-              <View style={[styles.card, { borderLeftColor: '#2563EB', borderLeftWidth: 4 }]}>
-                <Text style={styles.cardLabel}>TỔNG LƯỢT NGHE (ANONYMOUS)</Text>
-                <Text style={styles.cardValue}>{MOCK_ANALYTICS.totalStreams}</Text>
-              </View>
-              <View style={[styles.card, { borderLeftColor: '#10B981', borderLeftWidth: 4 }]}>
-                <Text style={styles.cardLabel}>THỜI LƯỢNG NGHE TRUNG BÌNH</Text>
-                <Text style={[styles.cardValue, { color: '#10B981' }]}>{MOCK_ANALYTICS.avgDurationMinutes} <Text style={{fontSize: 16}}>phút</Text></Text>
-              </View>
-              <View style={[styles.card, { borderLeftColor: '#F59E0B', borderLeftWidth: 4 }]}>
-                <Text style={styles.cardLabel}>TOP POI ĐƯỢC NGHE NHIỀU NHẤT</Text>
-                <Text style={styles.cardValueSmall}>{MOCK_ANALYTICS.topPoi}</Text>
-              </View>
-            </View>
+            {/* 4 Thẻ chỉ số chính */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
+              <div style={{ backgroundColor: '#FFFFFF', padding: '20px', borderRadius: '12px', border: '1px solid #E2E8F0', borderLeft: '4px solid #8B5CF6', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: '#64748B', fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px' }}>NGƯỜI DÙNG HIỆN HÀNH</span>
+                  <span style={{ display: 'inline-block', width: '8px', height: '8px', backgroundColor: '#22C55E', borderRadius: '50%' }}></span>
+                </div>
+                <div style={{ fontSize: '28px', fontWeight: 800, color: '#8B5CF6', marginTop: '8px' }}>
+                  {activeUsersCount} <span style={{ fontSize: '13px', color: '#64748B', fontWeight: 500 }}>online</span>
+                </div>
+              </div>
 
-            <View style={styles.heatmapBox}>
-              <View style={styles.heatmapBadge}>
-                <Text style={styles.heatmapBadgeText}>SPATIAL HEATMAP LIVE</Text>
-              </View>
-              <Text style={styles.heatmapText}>🗺️ Trực quan hóa luồng di chuyển du khách qua Bản đồ nhiệt (Heatmap)</Text>
-              <Text style={styles.heatmapSubtext}>Nhật ký di chuyển và lượt nghe được thu thập ẩn danh theo đúng tiêu chuẩn bảo mật.</Text>
-            </View>
-          </ScrollView>
+              <div style={{ backgroundColor: '#FFFFFF', padding: '20px', borderRadius: '12px', border: '1px solid #E2E8F0', borderLeft: '4px solid #2563EB', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                <div style={{ color: '#64748B', fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px' }}>TỔNG LƯỢT NGHE (ANONYMOUS)</div>
+                <div style={{ fontSize: '28px', fontWeight: 800, color: '#2563EB', marginTop: '8px' }}>{totalStreams}</div>
+              </div>
+
+              <div style={{ backgroundColor: '#FFFFFF', padding: '20px', borderRadius: '12px', border: '1px solid #E2E8F0', borderLeft: '4px solid #10B981', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                <div style={{ color: '#64748B', fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px' }}>THỜI LƯỢNG NGHE TRUNG BÌNH</div>
+                <div style={{ fontSize: '28px', fontWeight: 800, color: '#10B981', marginTop: '8px' }}>{MOCK_ANALYTICS.avgDurationMinutes} <span style={{ fontSize: '16px' }}>phút</span></div>
+              </div>
+
+              <div style={{ backgroundColor: '#FFFFFF', padding: '20px', borderRadius: '12px', border: '1px solid #E2E8F0', borderLeft: '4px solid #F59E0B', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                <div style={{ color: '#64748B', fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px' }}>TOP POI ĐƯỢC NGHE NHIỀU NHẤT</div>
+                <div style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', marginTop: '10px', lineHeight: '1.3' }}>{MOCK_ANALYTICS.topPoi}</div>
+              </div>
+            </div>
+
+            {/* Khung bản đồ nhiệt Heatmap */}
+            <div style={{ backgroundColor: '#FFFFFF', borderRadius: '12px', border: '1px solid #E2E8F0', padding: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0F172A' }}>🗺️ Trực quan hóa luồng di chuyển du khách qua Bản đồ nhiệt (Heatmap)</h3>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748B' }}>Nhật ký di chuyển và lượt nghe được thu thập ẩn danh theo đúng tiêu chuẩn bảo mật.</p>
+                </div>
+                <span style={{ backgroundColor: '#EF4444', color: '#FFFFFF', fontSize: '10px', fontWeight: 800, padding: '4px 8px', borderRadius: '6px' }}>SPATIAL HEATMAP LIVE</span>
+              </div>
+
+              <div style={{ width: '100%', height: '360px', backgroundColor: '#F8FAFC', borderRadius: '10px', position: 'relative', overflow: 'hidden', border: '1px solid #E2E8F0' }}>
+                <canvas ref={canvasRef} width={850} height={360} style={{ width: '100%', height: '100%', display: 'block' }} />
+              </div>
+            </div>
+          </div>
         )}
-      </View>
+      </div>
 
-      {/* MODAL MÃ QR CODE THẬT */}
-      <Modal
-        visible={selectedPoiForQR !== null}
-        transparent={true}
-        animationType="fade"
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Mã QR Địa Điểm</Text>
-            <Text style={styles.modalSubtitle}>{selectedPoiForQR?.name}</Text>
-            
-            <View style={styles.qrContainer}>
-              {selectedPoiForQR && (
-                <Image
-                  style={styles.qrImage}
-                  source={{
-                    uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=poi://${selectedPoiForQR.id}`,
-                  }}
-                />
-              )}
-            </View>
+      {/* Modal QR Code */}
+      {selectedPoiForQR && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(15, 23, 42, 0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }}>
+          <div style={{ width: '340px', backgroundColor: '#FFFFFF', borderRadius: '20px', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
+            <h3 style={{ fontSize: '20px', fontWeight: 800, color: '#0F172A', margin: '0 0 4px 0' }}>Mã QR Địa Điểm</h3>
+            <p style={{ fontSize: '13px', color: '#64748B', textAlign: 'center', margin: '0 0 16px 0' }}>{selectedPoiForQR?.name}</p>
 
-            <Text style={styles.qrHintText}>
-              Mã POI: <Text style={{ fontWeight: '700', color: '#2563EB' }}>{selectedPoiForQR?.id}</Text>
-            </Text>
-            <Text style={styles.qrSubHint}>Bật ứng dụng Mobile để quét mã trực tiếp</Text>
+            <div style={{ padding: '12px', backgroundColor: '#FFFFFF', borderRadius: '16px', border: '1px solid #E2E8F0', marginBottom: '12px' }}>
+              <img style={{ width: '180px', height: '180px', borderRadius: '8px', display: 'block' }} src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=poi://${selectedPoiForQR.id}`} alt="QR Code" />
+            </div>
 
-            <TouchableOpacity 
-              style={styles.closeModalBtn}
-              onPress={() => setSelectedPoiForQR(null)}
-            >
-              <Text style={styles.closeModalText}>Đóng</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-    </View>
+            <div style={{ fontSize: '13px', color: '#334155', marginBottom: '4px' }}>Mã POI: <span style={{ fontWeight: 700, color: '#2563EB' }}>{selectedPoiForQR?.id}</span></div>
+            <div style={{ fontSize: '11px', color: '#94A3B8', textAlign: 'center', marginBottom: '20px' }}>Bật ứng dụng Mobile để quét mã trực tiếp</div>
+
+            <button onClick={() => setSelectedPoiForQR(null)} style={{ backgroundColor: '#0F172A', padding: '12px 24px', borderRadius: '10px', width: '100%', border: 'none', color: '#FFFFFF', fontWeight: 700, fontSize: '14px', cursor: 'pointer' }}>Đóng</button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
-
-const styles = StyleSheet.create({
-  container: { flex: 1, flexDirection: 'row', backgroundColor: '#F8FAFC' },
-  sidebar: { width: 260, backgroundColor: '#FFFFFF', padding: 20, borderWidth: 1, borderColor: '#E2E8F0' },
-  logoContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 32 },
-  logoDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#2563EB' },
-  logo: { color: '#0F172A', fontSize: 18, fontWeight: '800', letterSpacing: 0.5 },
-  menuItem: { paddingVertical: 12, paddingHorizontal: 16, borderRadius: 8, marginBottom: 8 },
-  menuActive: { backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE' },
-  menuText: { color: '#64748B', fontSize: 13, fontWeight: '600' },
-  menuTextActive: { color: '#2563EB', fontWeight: '700' },
-  content: { flex: 1, padding: 32 },
-  section: { flex: 1 },
-  title: { fontSize: 22, fontWeight: '800', color: '#0F172A', marginBottom: 24 },
-  formCard: { backgroundColor: '#FFFFFF', padding: 20, borderRadius: 12, marginBottom: 24, borderWidth: 1, borderColor: '#E2E8F0' },
-  formTitle: { fontSize: 15, fontWeight: '700', color: '#1E293B', marginBottom: 14 },
-  input: { borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 8, padding: 10, marginBottom: 12, backgroundColor: '#F8FAFC', color: '#0F172A', fontSize: 13 },
-  rowInput: { flexDirection: 'row', gap: 12 },
-  primaryBtn: { backgroundColor: '#2563EB', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 4 },
-  btnText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
-  tableRow: { flexDirection: 'row', backgroundColor: '#FFFFFF', padding: 14, borderRadius: 8, marginBottom: 6, alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
-  tableRowEven: { backgroundColor: '#F8FAFC' },
-  tableHeader: { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' },
-  headerText: { fontWeight: '700', color: '#1D4ED8', fontSize: 13 },
-  cell: { flex: 1, color: '#334155', fontSize: 13 },
-  fontMedium: { fontWeight: '600', color: '#0F172A' },
-  fontCode: { fontFamily: 'monospace', fontWeight: '700', color: '#475569' },
-  textMuted: { color: '#64748B' },
-  badgeRegion: { backgroundColor: '#FEF3C7', color: '#D97706', paddingVertical: 2, paddingHorizontal: 8, borderRadius: 12, fontSize: 12, fontWeight: '700' },
-  badgeSuccess: { backgroundColor: '#D1FAE5', color: '#059669', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 12, fontSize: 12, fontWeight: '700' },
-  badgeWarning: { backgroundColor: '#FEF3C7', color: '#D97706', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 12, fontSize: 12, fontWeight: '700' },
-  qrBtn: { backgroundColor: '#F1F5F9', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16, borderWidth: 1, borderColor: '#CBD5E1' },
-  qrBtnText: { color: '#475569', fontSize: 11, fontWeight: '700' },
-  audioBtn: { backgroundColor: '#EFF6FF', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 16, borderWidth: 1, borderColor: '#2563EB' },
-  audioBtnPlaying: { backgroundColor: '#FEF2F2', borderColor: '#EF4444' },
-  audioBtnText: { color: '#2563EB', fontSize: 11, fontWeight: '700' },
-  audioBtnTextPlaying: { color: '#DC2626' },
-  statsContainer: { flexDirection: 'row', gap: 16, marginBottom: 24 },
-  card: { flex: 1, backgroundColor: '#FFFFFF', padding: 20, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0' },
-  cardLabel: { color: '#64748B', fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 8 },
-  cardValue: { fontSize: 28, fontWeight: '800', color: '#2563EB' },
-  cardValueSmall: { fontSize: 16, fontWeight: '700', color: '#0F172A' },
-  heatmapBox: { height: 340, backgroundColor: '#F1F5F9', borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderStyle: 'dashed', borderWidth: 2, borderColor: '#CBD5E1', position: 'relative', padding: 20 },
-  heatmapBadge: { position: 'absolute', top: 16, right: 16, backgroundColor: '#EF4444', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 6 },
-  heatmapBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
-  heatmapText: { color: '#334155', fontWeight: '700', fontSize: 16, marginBottom: 8 },
-  heatmapSubtext: { color: '#64748B', fontSize: 13, textAlign: 'center' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { width: 340, backgroundColor: '#FFFFFF', borderRadius: 20, padding: 24, alignItems: 'center', elevation: 10 },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: '#0F172A', marginBottom: 4 },
-  modalSubtitle: { fontSize: 13, color: '#64748B', textAlign: 'center', marginBottom: 16 },
-  qrContainer: { padding: 12, backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 8, marginBottom: 12 },
-  qrImage: { width: 180, height: 180, borderRadius: 8 },
-  qrHintText: { fontSize: 13, color: '#334155', marginBottom: 4 },
-  qrSubHint: { fontSize: 11, color: '#94A3B8', textAlign: 'center', marginBottom: 20, paddingHorizontal: 10 },
-  closeModalBtn: { backgroundColor: '#0F172A', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 10, width: '100%', alignItems: 'center' },
-  closeModalText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 }
-});
