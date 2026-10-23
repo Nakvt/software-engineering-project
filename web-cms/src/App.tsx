@@ -27,4 +27,9 @@ export const App: React.FC = () => {
   );
 };
 
-export default App;
+  if (!isLoggedIn) {
+    return <LoginPage onLoginSuccess={() => setIsLoggedIn(true)} />;
+  }
+
+  return <AdminDashboardScreen onLogout={() => setIsLoggedIn(false)} />;
+}
