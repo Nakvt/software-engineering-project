@@ -1,11 +1,13 @@
+import { useState } from 'react';
+import LoginPage from './presentation/pages/login/loginPage';
 import { AdminDashboardScreen } from './presentation/screens/AdminDashboardScreen';
 
-function App() {
-  return (
-    <div>
-      <AdminDashboardScreen />
-    </div>
-  );
-}
+export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-export default App;
+  if (!isLoggedIn) {
+    return <LoginPage onLoginSuccess={() => setIsLoggedIn(true)} />;
+  }
+
+  return <AdminDashboardScreen onLogout={() => setIsLoggedIn(false)} />;
+}
