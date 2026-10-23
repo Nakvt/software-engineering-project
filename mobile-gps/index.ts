@@ -12,7 +12,7 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
     console.error('Lỗi nhận dữ liệu Background GPS:', error.message);
     return;
   }
-
+ 
   if (data) {
     const { locations } = data as { locations: Location.LocationObject[] };
     if (!locations || locations.length === 0) return;
