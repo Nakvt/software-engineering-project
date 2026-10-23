@@ -12,6 +12,16 @@ interface LanguageOption {
   speechLang: string;
 }
 
+interface PoiItem {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  radius: number;
+  langCode: string;
+  script: string;
+}
+
 const SUPPORTED_LANGUAGES: LanguageOption[] = [
   { code: 'vi', iso: 'vi', name: 'Vietnamese', flagUrl: 'https://flagcdn.com/w40/vn.png', speechLang: 'vi-VN' },
   { code: 'en', iso: 'en', name: 'English', flagUrl: 'https://flagcdn.com/w40/gb.png', speechLang: 'en-US' },
@@ -44,7 +54,7 @@ const MULTI_LANG_SCRIPTS: Record<string, Record<string, string>> = {
   }
 };
 
-const INITIAL_POIS = [
+const INITIAL_POIS: PoiItem[] = [
   {
     id: 'P-01',
     name: 'Cổng Tam Quan - Chùa Linh Ứng Bãi Bụt',
@@ -77,17 +87,16 @@ const INITIAL_POIS = [
 export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState<'cms' | 'tours' | 'analytics'>('cms');
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
-  const [selectedPoiForQR, setSelectedPoiForQR] = useState<any | null>(null);
+  const [selectedPoiForQR, setSelectedPoiForQR] = useState<PoiItem | null>(null);
 
   const [activeUsersCount] = useState<number>(0);
 
-  // Đọc lượt nghe từ localStorage để không bị mất khi F5 hoặc mở lại web[cite: 8]
   const [totalStreams, setTotalStreams] = useState<number>(() => {
     const savedStreams = localStorage.getItem('tourism_total_streams');
     return savedStreams ? parseInt(savedStreams, 10) : 1280;
   });
 
-  const [poiList, setPoiList] = useState(INITIAL_POIS);
+  const [poiList, setPoiList] = useState<PoiItem[]>(INITIAL_POIS);
   
   const [isFormLangOpen, setIsFormLangOpen] = useState(false);
   const [formSearchQuery, setFormSearchQuery] = useState('');
@@ -197,7 +206,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
       alert('Vui lòng nhập tên địa điểm POI!');
       return;
     }
-    const createdPoi = {
+    const createdPoi: PoiItem = {
       id: `P-0${poiList.length + 1}`,
       name: newPoi.name,
       latitude: Number(newPoi.latitude) || 16.1000,
@@ -238,7 +247,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
     alert('Khởi tạo lộ trình Tour thành công!');
   };
 
-  const handleTextToSpeech = (item: any) => {
+  const handleTextToSpeech = (item: PoiItem) => {
     if (!('speechSynthesis' in window)) {
       alert('Trình duyệt không hỗ trợ Web Speech API.');
       return;
@@ -252,7 +261,6 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
 
     window.speechSynthesis.cancel();
     
-    // Tăng số lượt nghe và lưu trữ trực tiếp vào localStorage[cite: 8]
     setTotalStreams((prev) => {
       const nextCount = prev + 1;
       localStorage.setItem('tourism_total_streams', nextCount.toString());
@@ -397,7 +405,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
               <div style={{ flex: 1, textAlign: 'center' }}>Mã QR / Preview</div>
             </div>
 
-            {poiList.map((item: any, idx: number) => {
+            {poiList.map((item: PoiItem, idx: number) => {
               const rowLangObj = SUPPORTED_LANGUAGES.find(l => l.code === item.langCode) || SUPPORTED_LANGUAGES[0];
               const filteredRowLangs = SUPPORTED_LANGUAGES.filter(l => 
                 l.name.toLowerCase().includes(rowSearchQuery.toLowerCase()) || 
