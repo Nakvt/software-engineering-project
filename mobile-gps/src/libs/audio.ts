@@ -6,7 +6,19 @@ export interface VoiceOption {
   language: string;
 }
 
+export type RegionAccent = 'north' | 'central' | 'south';
+
 export class AudioLib {
+  private static selectedVoiceIdentifier?: string;
+  private static currentRegion: RegionAccent = 'north';
+
+  /**
+   * Chọn giọng đọc cụ thể theo Identifier
+   */
+  static setVoice(voiceIdentifier?: string): void {
+    this.selectedVoiceIdentifier = voiceIdentifier;
+  }
+
   /**
    * Lấy danh sách các giọng đọc hỗ trợ trên thiết bị
    */
@@ -25,23 +37,71 @@ export class AudioLib {
   }
 
   /**
-   * Phát Text-to-Speech (TTS) theo kịch bản văn bản và mã ngôn ngữ
+   * Cài đặt giọng đọc 3 miền (Bắc / Trung / Nam)
+   */
+  static async setVietnameseRegionalVoice(region: RegionAccent): Promise<void> {
+    this.currentRegion = region;
+    const voices = await this.getSupportedVoices();
+    const viVoices = voices.filter((v) => v.language.startsWith('vi'));
+
+    if (viVoices.length === 0) {
+      this.selectedVoiceIdentifier = undefined;
+      return;
+    }
+
+    // Thử tìm giọng đọc theo tên hệ thống
+    const targetVoice = viVoices.find((v) => {
+      const nameLower = v.name.toLowerCase();
+      if (region === 'north') return nameLower.includes('bac') || nameLower.includes('hanoi') || nameLower.includes('northern');
+      if (region === 'south') return nameLower.includes('nam') || nameLower.includes('saigon') || nameLower.includes('southern');
+      if (region === 'central') return nameLower.includes('trung') || nameLower.includes('hue') || nameLower.includes('central');
+      return false;
+    });
+
+    this.selectedVoiceIdentifier = targetVoice ? targetVoice.identifier : viVoices[0].identifier;
+  }
+
+  /**
+   * Phát Text-to-Speech (TTS) với âm điệu biến đổi theo vùng miền hoặc ngôn ngữ
    */
   static async playTTS(
     text: string,
     languageCode: string = 'vi-VN',
     onFinish?: () => void
   ): Promise<void> {
-    // Ngắt câu đọc cũ trước khi cất giọng đọc câu mới
     await this.stopAll();
 
-    Speech.speak(text, {
+    // Mặc định thông số giọng
+    let pitch = 1.0;
+    let rate = 0.9;
+
+    // Nếu là Tiếng Việt, tinh chỉnh Pitch & Rate để tạo sự khác biệt âm điệu 3 miền rõ rệt
+    if (languageCode.startsWith('vi')) {
+      if (this.currentRegion === 'north') {
+        pitch = 1.1; // Giọng Bắc: Cao độ thanh, chuẩn xác
+        rate = 0.95;
+      } else if (this.currentRegion === 'central') {
+        pitch = 0.85; // Giọng Trung: Trầm ấm, nhịp đọc thong thả hơn
+        rate = 0.82;
+      } else if (this.currentRegion === 'south') {
+        pitch = 0.98; // Giọng Nam: Mềm mại, nhịp đọc nhanh tự nhiên
+        rate = 1.02;
+      }
+    }
+
+    const options: Speech.SpeechOptions = {
       language: languageCode,
-      pitch: 1.0,
-      rate: 0.9,
+      pitch,
+      rate,
       onDone: onFinish,
       onError: () => onFinish?.(),
-    });
+    };
+
+    if (this.selectedVoiceIdentifier) {
+      options.voice = this.selectedVoiceIdentifier;
+    }
+
+    Speech.speak(text, options);
   }
 
   /**
@@ -53,7 +113,7 @@ export class AudioLib {
   }
 
   /**
-   * Dừng toàn bộ âm thanh đang đọc trên thiết bị
+   * Dừng toàn bộ âm thanh đang đọc
    */
   static async stopAll(): Promise<void> {
     try {
@@ -67,7 +127,7 @@ export class AudioLib {
   }
 
   /**
-   * Alias phương thức stop() giúp tương thích 100% với AudioQueueService
+   * Alias phương thức stop() tương thích với AudioQueueService
    */
   static async stop(): Promise<void> {
     await this.stopAll();
