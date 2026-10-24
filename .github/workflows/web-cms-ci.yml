@@ -1,0 +1,45 @@
+name: Web CMS CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - "web-cms/**"
+      - ".github/workflows/web-cms-ci.yml"
+  push:
+    branches: [develop, main]
+    paths:
+      - "web-cms/**"
+      - ".github/workflows/web-cms-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  web-cms:
+    name: Lint and build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: web-cms
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web-cms/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Build and type check
+        run: npm run build
