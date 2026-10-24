@@ -11,12 +11,22 @@ interface LanguageOption {
   speechLang: string;
 }
 
-const LANGUAGES: LanguageOption[] = [
-  { code: 'vi', name: 'Vietnamese', flag: 'https://flagcdn.com/w40/vn.png', speechLang: 'vi-VN' },
-  { code: 'en', name: 'English', flag: 'https://flagcdn.com/w40/gb.png', speechLang: 'en-US' },
-  { code: 'zh', name: 'Chinese', flag: 'https://flagcdn.com/w40/cn.png', speechLang: 'zh-CN' },
-  { code: 'ja', name: 'Japanese', flag: 'https://flagcdn.com/w40/jp.png', speechLang: 'ja-JP' },
-  { code: 'ko', name: 'Korean', flag: 'https://flagcdn.com/w40/kr.png', speechLang: 'ko-KR' },
+interface PoiItem {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  radius: number;
+  langCode: string;
+  script: string;
+}
+
+const SUPPORTED_LANGUAGES: LanguageOption[] = [
+  { code: 'vi', iso: 'vi', name: 'Vietnamese', flagUrl: 'https://flagcdn.com/w40/vn.png', speechLang: 'vi-VN' },
+  { code: 'en', iso: 'en', name: 'English', flagUrl: 'https://flagcdn.com/w40/gb.png', speechLang: 'en-US' },
+  { code: 'zh', iso: 'zh', name: 'Chinese', flagUrl: 'https://flagcdn.com/w40/cn.png', speechLang: 'zh-CN' },
+  { code: 'ja', iso: 'ja', name: 'Japanese', flagUrl: 'https://flagcdn.com/w40/jp.png', speechLang: 'ja-JP' },
+  { code: 'ko', iso: 'ko', name: 'Korean', flagUrl: 'https://flagcdn.com/w40/kr.png', speechLang: 'ko-KR' },
 ];
 
 const ADMIN_TRANSLATIONS: Record<string, Record<string, string>> = {
@@ -270,37 +280,15 @@ const MULTI_LANG_NAMES: Record<string, Record<string, string>> = {
   }
 };
 
-const MULTI_LANG_TOURS: Record<string, Record<string, string>> = {
-  'T-01': {
-    vi: 'Tour Di Sản Bãi Bụt',
-    en: 'Bai But Heritage Tour',
-    zh: '拜佛遗产之旅',
-    ja: 'バイブット遺産ツアー',
-    ko: '바이붓 유산 투어'
-  },
-  'T-02': {
-    vi: 'Tour Khám Phá Tâm Linh',
-    en: 'Spiritual Discovery Tour',
-    zh: '心灵探索之旅',
-    ja: 'スピリチュアル発見ツアー',
-    ko: '영성 탐방 투어'
-  }
-};
-
-const MULTI_LANG_SCRIPTS: Record<string, Record<string, string>> = {
-  'P-01': {
-    vi: 'Cổng Tam Quan là cánh cổng dẫn lối vào khuôn viên chùa Linh Ứng Bãi Bụt. Cổng được thiết kế theo lối kiến trúc Việt cổ, mái ngói lưu ly cong vút hai đầu.',
-    en: 'The Tam Quan Gate is the gateway leading into the grounds of Linh Ung Bai But Pagoda. The gate is designed in traditional Vietnamese architecture.',
-    zh: '三关门是通往灵应寺拜佛园区的入口，采用传统越南建筑风格，两端飞檐翘角。',
-    ja: '三門（タムクアン門）は、リンウン寺の境内への入り口であり、ベトナムの伝統的な建築様式で造られています。',
-    ko: '삼관문은 링응사 바이붓 사원 내부로 들어가는 입구입니다. 이 문은 베트남 전통 건축 양식으로 지어졌습니다.'
-  },
-  'P-02': {
-    vi: 'Chính điện được lợp bằng mái ngói uốn cong có hình rồng, bao quanh là các trụ cột to vững chắc thờ các pho tượng lớn.',
-    en: 'The Main Hall features curved tiled roofs with dragon motifs, surrounded by sturdy pillars.',
-    zh: '正殿采用龙形翘角屋顶，四周环绕着坚固的柱子。',
-    ja: '本殿は竜の形をした反り屋根を持ち、頑丈な柱に囲まれています。',
-    ko: '본전은 용 모양의 곡선 기와지붕으로 지어졌습니다.'
+const INITIAL_POIS: PoiItem[] = [
+  {
+    id: 'P-01',
+    name: 'Cổng Tam Quan - Chùa Linh Ứng Bãi Bụt',
+    latitude: 16.1002,
+    longitude: 108.2781,
+    radius: 30,
+    langCode: 'vi',
+    script: MULTI_LANG_SCRIPTS['P-01']['vi']
   },
   'P-03': {
     vi: 'Tượng Phật Quan Thế Âm có độ cao 67m, đường kính tòa sen 35m, là tượng Phật cao nhất khu vực Đông Nam Á.',
@@ -338,24 +326,25 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'cms' | 'tours' | 'analytics'>('cms');
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
-  const [selectedPoiForQR, setSelectedPoiForQR] = useState<any | null>(null);
+  const [selectedPoiForQR, setSelectedPoiForQR] = useState<PoiItem | null>(null);
 
   const t = ADMIN_TRANSLATIONS[currentLang] || ADMIN_TRANSLATIONS['vi'];
   const selectedLangObj = LANGUAGES.find(l => l.code === currentLang) || LANGUAGES[0];
 
   const [activeUsersCount] = useState<number>(0);
 
-  // Đổi giá trị khởi tạo từ 12450 thành 199
   const [totalStreams, setTotalStreams] = useState<number>(() => {
     const saved = localStorage.getItem('tourist_total_streams');
     return saved ? Number(saved) : 199;
   });
 
-  useEffect(() => {
-    localStorage.setItem('tourist_total_streams', totalStreams.toString());
-  }, [totalStreams]);
-
-  const [poiList, setPoiList] = useState(INITIAL_POIS);
+  const [poiList, setPoiList] = useState<PoiItem[]>(INITIAL_POIS);
+  
+  const [isFormLangOpen, setIsFormLangOpen] = useState(false);
+  const [formSearchQuery, setFormSearchQuery] = useState('');
+  
+  const [openRowDropdownId, setOpenRowDropdownId] = useState<string | null>(null);
+  const [rowSearchQuery, setRowSearchQuery] = useState('');
 
   const [newPoi, setNewPoi] = useState({
     name: '',
@@ -447,9 +436,9 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
       alert('Vui lòng nhập tên địa điểm POI!');
       return;
     }
-    const newId = `P-0${poiList.length + 1}`;
-    const createdPoi = {
-      id: newId,
+    const createdPoi: PoiItem = {
+      id: `P-0${poiList.length + 1}`,
+      name: newPoi.name,
       latitude: Number(newPoi.latitude) || 16.1000,
       longitude: Number(newPoi.longitude) || 108.2700,
       radius: Number(newPoi.radius) || 30,
@@ -508,7 +497,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
     alert('Khởi tạo lộ trình Tour thành công!');
   };
 
-  const handleTextToSpeech = (item: any) => {
+  const handleTextToSpeech = (item: PoiItem) => {
     if (!('speechSynthesis' in window)) {
       alert('Trình duyệt không hỗ trợ Web Speech API.');
       return;
@@ -521,8 +510,8 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
     }
 
     window.speechSynthesis.cancel();
-
-    setTotalStreams(prev => {
+    
+    setTotalStreams((prev) => {
       const nextCount = prev + 1;
       localStorage.setItem('tourist_total_streams', nextCount.toString());
       return nextCount;
@@ -717,8 +706,42 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
                           <span style={{ fontSize: '12px', color: '#64748B' }}>{t.coordsLabel}: {item.latitude}, {item.longitude}</span>
                         </div>
 
-                        <div style={{ fontSize: '12px', color: '#475569', flex: 1, margin: '0 20px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {currentScript}
+            {poiList.map((item: PoiItem, idx: number) => {
+              const rowLangObj = SUPPORTED_LANGUAGES.find(l => l.code === item.langCode) || SUPPORTED_LANGUAGES[0];
+              const filteredRowLangs = SUPPORTED_LANGUAGES.filter(l => 
+                l.name.toLowerCase().includes(rowSearchQuery.toLowerCase()) || 
+                l.iso.toLowerCase().includes(rowSearchQuery.toLowerCase())
+              );
+
+              return (
+                <div key={item.id} style={{ display: 'flex', backgroundColor: idx % 2 === 1 ? '#F8FAFC' : '#FFFFFF', padding: '14px', borderRadius: '8px', marginBottom: '6px', alignItems: 'center', border: '1px solid #F1F5F9', fontSize: '13px', position: 'relative' }}>
+                  <div style={{ flex: 1.5, fontWeight: 700, color: '#0F172A' }}>{item.name}</div>
+                  <div style={{ flex: 1.2, color: '#64748B' }}>{item.latitude}, {item.longitude} ({item.radius}m)</div>
+                  
+                  <div style={{ flex: 1.5, position: 'relative' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOpenRowDropdownId(openRowDropdownId === item.id ? null : item.id);
+                        setRowSearchQuery('');
+                      }}
+                      style={{ border: '1px solid #FCD34D', borderRadius: '8px', padding: '6px 10px', backgroundColor: '#FEF3C7', color: '#D97706', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <img src={rowLangObj.flagUrl} alt={rowLangObj.name} style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover' }} />
+                      <span>{rowLangObj.name} ({rowLangObj.iso})</span>
+                      <span style={{ fontSize: '9px', marginLeft: '4px' }}>▼</span>
+                    </button>
+
+                    {openRowDropdownId === item.id && (
+                      <div style={{ position: 'absolute', top: '110%', left: 0, width: '240px', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '10px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15)', zIndex: 200, overflow: 'hidden' }}>
+                        <div style={{ padding: '6px', borderBottom: '1px solid #F1F5F9' }}>
+                          <input
+                            type="text"
+                            placeholder="Search..."
+                            value={rowSearchQuery}
+                            onChange={(e) => setRowSearchQuery(e.target.value)}
+                            style={{ width: '100%', padding: '5px 8px', borderRadius: '6px', border: '1px solid #E2E8F0', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }}
+                          />
                         </div>
 
                         <div style={{ display: 'flex', gap: '8px' }}>
