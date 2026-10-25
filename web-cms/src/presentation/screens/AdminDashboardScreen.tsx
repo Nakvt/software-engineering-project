@@ -6,8 +6,9 @@ interface AdminDashboardScreenProps {
 
 interface LanguageOption {
   code: string;
+  iso: string;
   name: string;
-  flag: string;
+  flagUrl: string;
   speechLang: string;
 }
 
@@ -17,8 +18,6 @@ interface PoiItem {
   latitude: number;
   longitude: number;
   radius: number;
-  langCode: string;
-  script: string;
 }
 
 const SUPPORTED_LANGUAGES: LanguageOption[] = [
@@ -280,15 +279,37 @@ const MULTI_LANG_NAMES: Record<string, Record<string, string>> = {
   }
 };
 
-const INITIAL_POIS: PoiItem[] = [
-  {
-    id: 'P-01',
-    name: 'Cổng Tam Quan - Chùa Linh Ứng Bãi Bụt',
-    latitude: 16.1002,
-    longitude: 108.2781,
-    radius: 30,
-    langCode: 'vi',
-    script: MULTI_LANG_SCRIPTS['P-01']['vi']
+const MULTI_LANG_TOURS: Record<string, Record<string, string>> = {
+  'T-01': {
+    vi: 'Tour Di Sản Bãi Bụt',
+    en: 'Bai But Heritage Tour',
+    zh: '拜佛遗产之旅',
+    ja: 'バイブット遺産ツアー',
+    ko: '바이붓 유산 투어'
+  },
+  'T-02': {
+    vi: 'Tour Khám Phá Tâm Linh',
+    en: 'Spiritual Discovery Tour',
+    zh: '心灵探索之旅',
+    ja: 'スピリチュアル発見ツアー',
+    ko: '영성 탐방 투어'
+  }
+};
+
+const MULTI_LANG_SCRIPTS: Record<string, Record<string, string>> = {
+  'P-01': {
+    vi: 'Cổng Tam Quan là cánh cổng dẫn lối vào khuôn viên chùa Linh Ứng Bãi Bụt. Cổng được thiết kế theo lối kiến trúc Việt cổ, mái ngói lưu ly cong vút hai đầu.',
+    en: 'The Tam Quan Gate is the gateway leading into the grounds of Linh Ung Bai But Pagoda. The gate is designed in traditional Vietnamese architecture.',
+    zh: '三关门是通往灵应寺拜佛园区的入口，采用传统越南建筑风格，两端飞檐翘角。',
+    ja: '三門（タムクアン門）は、リンウン寺の境内への入り口であり、ベトナムの伝統的な建築様式で造られています。',
+    ko: '삼관문은 링응사 바이붓 사원 내부로 들어가는 입구입니다. 이 문은 베트남 전통 건축 양식으로 지어졌습니다.'
+  },
+  'P-02': {
+    vi: 'Chính điện được lợp bằng mái ngói uốn cong có hình rồng, bao quanh là các trụ cột to vững chắc thờ các pho tượng lớn.',
+    en: 'The Main Hall features curved tiled roofs with dragon motifs, surrounded by sturdy pillars.',
+    zh: '正殿采用龙形翘角屋顶，四周环绕着坚固的柱子。',
+    ja: '本殿は竜の形をした反り屋根を持ち、頑丈な柱に囲まれています。',
+    ko: '본전은 용 모양의 곡선 기와지붕으로 지어졌습니다.'
   },
   'P-03': {
     vi: 'Tượng Phật Quan Thế Âm có độ cao 67m, đường kính tòa sen 35m, là tượng Phật cao nhất khu vực Đông Nam Á.',
@@ -313,13 +334,34 @@ const INITIAL_POIS: PoiItem[] = [
   }
 };
 
-const INITIAL_POIS = [
-  { id: 'P-01', latitude: 16.1001, longitude: 108.2778, radius: 30 },
-  { id: 'P-02', latitude: 16.1005, longitude: 108.2781, radius: 50 },
-  { id: 'P-03', latitude: 16.1012, longitude: 108.279, radius: 60 },
-  { id: 'P-04', latitude: 16.1008, longitude: 108.2775, radius: 40 },
-  { id: 'P-05', latitude: 16.1002, longitude: 108.2770, radius: 35 }
+const INITIAL_POIS: PoiItem[] = [
+  { id: 'P-01', name: MULTI_LANG_NAMES['P-01']['vi'], latitude: 16.1001, longitude: 108.2778, radius: 30 },
+  { id: 'P-02', name: MULTI_LANG_NAMES['P-02']['vi'], latitude: 16.1005, longitude: 108.2781, radius: 50 },
+  { id: 'P-03', name: MULTI_LANG_NAMES['P-03']['vi'], latitude: 16.1012, longitude: 108.279, radius: 60 },
+  { id: 'P-04', name: MULTI_LANG_NAMES['P-04']['vi'], latitude: 16.1008, longitude: 108.2775, radius: 40 },
+  { id: 'P-05', name: MULTI_LANG_NAMES['P-05']['vi'], latitude: 16.1002, longitude: 108.2770, radius: 35 }
 ];
+
+// Nhãn giao diện cho nội dung chưa có; không phải bản dịch nội dung nghiệp vụ.
+const MISSING_CONTENT_LABELS: Record<string, { untranslated: string; noScript: string; noNarration: string }> = {
+  vi: { untranslated: 'chưa dịch', noScript: 'Chưa có lời thuyết minh', noNarration: 'Chưa có lời thuyết minh bằng ngôn ngữ đã chọn.' },
+  en: { untranslated: 'untranslated', noScript: 'No narration script', noNarration: 'No narration is available in the selected language.' },
+  zh: { untranslated: '未翻译', noScript: '暂无讲解词', noNarration: '所选语言暂无讲解词。' },
+  ja: { untranslated: '未翻訳', noScript: 'ナレーションなし', noNarration: '選択した言語のナレーションがありません。' },
+  ko: { untranslated: '미번역', noScript: '해설 없음', noNarration: '선택한 언어의 해설이 없습니다.' },
+};
+
+const getMissingLabels = (lang: string) => MISSING_CONTENT_LABELS[lang] || MISSING_CONTENT_LABELS['en'];
+
+const getPoiDisplayName = (poi: PoiItem, lang: string): string =>
+  MULTI_LANG_NAMES[poi.id]?.[lang] || `${poi.name} (${getMissingLabels(lang).untranslated})`;
+
+const getTourDisplayName = (tourId: string, lang: string): string => {
+  const names = MULTI_LANG_TOURS[tourId];
+  if (names?.[lang]) return names[lang];
+  const original = names ? Object.values(names)[0] : undefined;
+  return original ? `${original} (${getMissingLabels(lang).untranslated})` : tourId;
+};
 
 export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLogout }) => {
   const [currentLang, setCurrentLang] = useState('vi');
@@ -329,7 +371,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
   const [selectedPoiForQR, setSelectedPoiForQR] = useState<PoiItem | null>(null);
 
   const t = ADMIN_TRANSLATIONS[currentLang] || ADMIN_TRANSLATIONS['vi'];
-  const selectedLangObj = LANGUAGES.find(l => l.code === currentLang) || LANGUAGES[0];
+  const selectedLangObj = SUPPORTED_LANGUAGES.find(l => l.code === currentLang) || SUPPORTED_LANGUAGES[0];
 
   const [activeUsersCount] = useState<number>(0);
 
@@ -339,12 +381,6 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
   });
 
   const [poiList, setPoiList] = useState<PoiItem[]>(INITIAL_POIS);
-  
-  const [isFormLangOpen, setIsFormLangOpen] = useState(false);
-  const [formSearchQuery, setFormSearchQuery] = useState('');
-  
-  const [openRowDropdownId, setOpenRowDropdownId] = useState<string | null>(null);
-  const [rowSearchQuery, setRowSearchQuery] = useState('');
 
   const [newPoi, setNewPoi] = useState({
     name: '',
@@ -355,14 +391,6 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
     priority: '',
     script: '',
   });
-
-  useEffect(() => {
-    const defaultScript = MULTI_LANG_SCRIPTS['P-01'][currentLang] || MULTI_LANG_SCRIPTS['P-01']['vi'];
-    setNewPoi(prev => ({
-      ...prev,
-      script: defaultScript
-    }));
-  }, [currentLang]);
 
   const [tourList, setTourList] = useState([
     { id: 'T-01', poiCount: 5, isRawActive: true },
@@ -436,8 +464,9 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
       alert('Vui lòng nhập tên địa điểm POI!');
       return;
     }
+    const newId = `P-0${poiList.length + 1}`;
     const createdPoi: PoiItem = {
-      id: `P-0${poiList.length + 1}`,
+      id: newId,
       name: newPoi.name,
       latitude: Number(newPoi.latitude) || 16.1000,
       longitude: Number(newPoi.longitude) || 108.2700,
@@ -445,21 +474,13 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
     };
     if (!MULTI_LANG_NAMES[newId]) {
       MULTI_LANG_NAMES[newId] = {
-        vi: newPoi.name,
-        en: newPoi.name,
-        zh: newPoi.name,
-        ja: newPoi.name,
-        ko: newPoi.name
+        [currentLang]: newPoi.name
       };
     }
     if (!MULTI_LANG_SCRIPTS[newId]) {
-      MULTI_LANG_SCRIPTS[newId] = {
-        vi: newPoi.script,
-        en: `Description for ${newPoi.name}`,
-        zh: `${newPoi.name} 简介`,
-        ja: `${newPoi.name} の説明`,
-        ko: `${newPoi.name} 설명`
-      };
+      MULTI_LANG_SCRIPTS[newId] = newPoi.script.trim()
+        ? { [currentLang]: newPoi.script }
+        : {};
     }
     setPoiList([createdPoi, ...poiList]);
     setNewPoi({
@@ -469,7 +490,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
       longitude: '',
       radius: '',
       priority: '',
-      script: MULTI_LANG_SCRIPTS['P-01'][currentLang] || MULTI_LANG_SCRIPTS['P-01']['vi'],
+      script: '',
     });
     alert('Thêm địa điểm POI thành công!');
   };
@@ -481,11 +502,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
     }
     const newId = `T-0${tourList.length + 1}`;
     MULTI_LANG_TOURS[newId] = {
-      vi: newTourName,
-      en: newTourName,
-      zh: newTourName,
-      ja: newTourName,
-      ko: newTourName
+      [currentLang]: newTourName
     };
     const createdTour = {
       id: newId,
@@ -509,6 +526,12 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
       return;
     }
 
+    const currentScript = MULTI_LANG_SCRIPTS[item.id]?.[currentLang];
+    if (!currentScript) {
+      alert(getMissingLabels(currentLang).noNarration);
+      return;
+    }
+
     window.speechSynthesis.cancel();
     
     setTotalStreams((prev) => {
@@ -517,7 +540,6 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
       return nextCount;
     });
 
-    const currentScript = MULTI_LANG_SCRIPTS[item.id]?.[currentLang] || MULTI_LANG_SCRIPTS['P-01']['vi'];
     const utterance = new SpeechSynthesisUtterance(currentScript);
     utterance.lang = selectedLangObj.speechLang;
 
@@ -589,14 +611,14 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
               onClick={() => setIsLangMenuOpen(!isLangMenuOpen)}
               style={{ backgroundColor: '#FFFFFF', border: '1px solid #CBD5E1', color: '#0F172A', padding: '8px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: 700, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
             >
-              <img src={selectedLangObj.flag} alt="" style={{ width: '22px', height: '15px', objectFit: 'cover', borderRadius: '2px' }} />
+              <img src={selectedLangObj.flagUrl} alt="" style={{ width: '22px', height: '15px', objectFit: 'cover', borderRadius: '2px' }} />
               <span>{selectedLangObj.name}</span>
               <span style={{ fontSize: '10px', color: '#64748B' }}>▼</span>
             </button>
 
             {isLangMenuOpen && (
               <div style={{ position: 'absolute', top: '120%', right: 0, width: '180px', backgroundColor: '#FFFFFF', borderRadius: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.15)', border: '1px solid #E2E8F0', overflow: 'hidden', zIndex: 1000 }}>
-                {LANGUAGES.map((lang) => (
+                {SUPPORTED_LANGUAGES.map((lang) => (
                   <div
                     key={lang.code}
                     onClick={() => {
@@ -607,7 +629,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
                     }}
                     style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', backgroundColor: currentLang === lang.code ? '#EFF6FF' : 'transparent', color: currentLang === lang.code ? '#2563EB' : '#1E293B', fontWeight: currentLang === lang.code ? 700 : 500, fontSize: '13px' }}
                   >
-                    <img src={lang.flag} alt="" style={{ width: '20px', height: '14px', objectFit: 'cover', borderRadius: '2px' }} />
+                    <img src={lang.flagUrl} alt="" style={{ width: '20px', height: '14px', objectFit: 'cover', borderRadius: '2px' }} />
                     <span>{lang.name}</span>
                   </div>
                 ))}
@@ -695,8 +717,8 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
                 <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#1E293B', marginTop: 0, marginBottom: '16px' }}>{t.poiListTitle} ({poiList.length})</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {poiList.map((item) => {
-                    const currentName = MULTI_LANG_NAMES[item.id]?.[currentLang] || MULTI_LANG_NAMES['P-01']['vi'];
-                    const currentScript = MULTI_LANG_SCRIPTS[item.id]?.[currentLang] || MULTI_LANG_SCRIPTS['P-01']['vi'];
+                    const currentName = getPoiDisplayName(item, currentLang);
+                    const currentScript = MULTI_LANG_SCRIPTS[item.id]?.[currentLang];
 
                     return (
                       <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px', border: '1px solid #E2E8F0', borderRadius: '10px', backgroundColor: '#F8FAFC' }}>
@@ -706,42 +728,8 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
                           <span style={{ fontSize: '12px', color: '#64748B' }}>{t.coordsLabel}: {item.latitude}, {item.longitude}</span>
                         </div>
 
-            {poiList.map((item: PoiItem, idx: number) => {
-              const rowLangObj = SUPPORTED_LANGUAGES.find(l => l.code === item.langCode) || SUPPORTED_LANGUAGES[0];
-              const filteredRowLangs = SUPPORTED_LANGUAGES.filter(l => 
-                l.name.toLowerCase().includes(rowSearchQuery.toLowerCase()) || 
-                l.iso.toLowerCase().includes(rowSearchQuery.toLowerCase())
-              );
-
-              return (
-                <div key={item.id} style={{ display: 'flex', backgroundColor: idx % 2 === 1 ? '#F8FAFC' : '#FFFFFF', padding: '14px', borderRadius: '8px', marginBottom: '6px', alignItems: 'center', border: '1px solid #F1F5F9', fontSize: '13px', position: 'relative' }}>
-                  <div style={{ flex: 1.5, fontWeight: 700, color: '#0F172A' }}>{item.name}</div>
-                  <div style={{ flex: 1.2, color: '#64748B' }}>{item.latitude}, {item.longitude} ({item.radius}m)</div>
-                  
-                  <div style={{ flex: 1.5, position: 'relative' }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOpenRowDropdownId(openRowDropdownId === item.id ? null : item.id);
-                        setRowSearchQuery('');
-                      }}
-                      style={{ border: '1px solid #FCD34D', borderRadius: '8px', padding: '6px 10px', backgroundColor: '#FEF3C7', color: '#D97706', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-                    >
-                      <img src={rowLangObj.flagUrl} alt={rowLangObj.name} style={{ width: '18px', height: '12px', borderRadius: '2px', objectFit: 'cover' }} />
-                      <span>{rowLangObj.name} ({rowLangObj.iso})</span>
-                      <span style={{ fontSize: '9px', marginLeft: '4px' }}>▼</span>
-                    </button>
-
-                    {openRowDropdownId === item.id && (
-                      <div style={{ position: 'absolute', top: '110%', left: 0, width: '240px', backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '10px', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15)', zIndex: 200, overflow: 'hidden' }}>
-                        <div style={{ padding: '6px', borderBottom: '1px solid #F1F5F9' }}>
-                          <input
-                            type="text"
-                            placeholder="Search..."
-                            value={rowSearchQuery}
-                            onChange={(e) => setRowSearchQuery(e.target.value)}
-                            style={{ width: '100%', padding: '5px 8px', borderRadius: '6px', border: '1px solid #E2E8F0', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }}
-                          />
+                        <div style={{ fontSize: '12px', color: '#475569', flex: 1, margin: '0 20px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {currentScript || <em style={{ color: '#B45309' }}>{getMissingLabels(currentLang).noScript}</em>}
                         </div>
 
                         <div style={{ display: 'flex', gap: '8px' }}>
@@ -796,7 +784,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
                 <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#1E293B', marginTop: 0, marginBottom: '16px' }}>{t.tourListTitle}</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {tourList.map((tour) => {
-                    const translatedTourName = MULTI_LANG_TOURS[tour.id]?.[currentLang] || MULTI_LANG_TOURS['T-01']['vi'];
+                    const translatedTourName = getTourDisplayName(tour.id, currentLang);
                     const statusText = tour.isRawActive ? t.activeStatus : t.draftStatus;
 
                     return (
@@ -851,7 +839,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
                     const stepX = 850 / (poiList.length + 1);
                     const x = stepX * (index + 1);
                     const y = 130 + Math.sin(index * 1.2) * 50;
-                    const name = MULTI_LANG_NAMES[poi.id]?.[currentLang] || MULTI_LANG_NAMES['P-01']['vi'];
+                    const name = getPoiDisplayName(poi, currentLang);
 
                     return (
                       <div
