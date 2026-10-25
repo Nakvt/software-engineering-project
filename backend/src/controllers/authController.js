@@ -21,10 +21,11 @@ class AuthController {
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      return res.status(401).json({
+      const invalidCredentials = error && error.code === 'INVALID_CREDENTIALS';
+      return res.status(invalidCredentials ? 401 : 500).json({
         success: false,
         data: null,
-        error: error.message,
+        error: invalidCredentials ? 'Mật khẩu hoặc tên đăng nhập không đúng' : 'Internal server error',
         timestamp: new Date().toISOString(),
       });
     }
@@ -41,10 +42,11 @@ class AuthController {
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      return res.status(401).json({
+      const invalidRefreshToken = error && error.code === 'INVALID_REFRESH_TOKEN';
+      return res.status(invalidRefreshToken ? 401 : 500).json({
         success: false,
         data: null,
-        error: error.message,
+        error: invalidRefreshToken ? 'Refresh Token không hợp lệ hoặc đã hết hạn' : 'Internal server error',
         timestamp: new Date().toISOString(),
       });
     }
@@ -60,11 +62,11 @@ class AuthController {
         error: null,
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
+    } catch {
       return res.status(500).json({
         success: false,
         data: null,
-        error: error.message,
+        error: 'Internal server error',
         timestamp: new Date().toISOString(),
       });
     }
