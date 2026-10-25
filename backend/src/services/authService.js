@@ -4,18 +4,30 @@ const jwtConfig = require('../config/jwt');
 const adminRepository = require('../repositories/adminRepository');
 const refreshTokenRepository = require('../repositories/refreshTokenRepository');
 
+function invalidCredentialsError() {
+  const error = new Error('Mật khẩu hoặc tên đăng nhập không đúng');
+  error.code = 'INVALID_CREDENTIALS';
+  return error;
+}
+
+function invalidRefreshTokenError() {
+  const error = new Error('Refresh Token không hợp lệ hoặc đã hết hạn');
+  error.code = 'INVALID_REFRESH_TOKEN';
+  return error;
+}
+
 class AuthService {
   async login(username, password) {
     // 1. Kiểm tra username
     const admin = await adminRepository.findByUsername(username);
     if (!admin) {
-      throw new Error('Mật khẩu hoặc tên đăng nhập không đúng');
+      throw invalidCredentialsError();
     }
 
     // 2. So sánh mật khẩu băm
     const isPasswordValid = await bcrypt.compare(password, admin.password_hash);
     if (!isPasswordValid) {
-      throw new Error('Mật khẩu hoặc tên đăng nhập không đúng');
+      throw invalidCredentialsError();
     }
 
     // 3. Tạo Access Token & Refresh Token
@@ -42,21 +54,21 @@ class AuthService {
 
   async refreshToken(refreshToken) {
     if (!refreshToken) {
-      throw new Error('Refresh Token không được để trống');
+      throw invalidRefreshTokenError();
     }
 
     // 1. Kiểm tra token trong DB
     const savedToken = await refreshTokenRepository.findToken(refreshToken);
     if (!savedToken || new Date(savedToken.expires_at) < new Date()) {
-      throw new Error('Refresh Token không hợp lệ hoặc đã hết hạn');
+      throw invalidRefreshTokenError();
     }
 
     // 2. Verify chuỗi JWT
     let payload;
     try {
       payload = jwt.verify(refreshToken, jwtConfig.refreshSecret);
-    } catch (err) {
-      throw new Error('Refresh Token không hợp lệ');
+    } catch {
+      throw invalidRefreshTokenError();
     }
 
     // 3. Cấp Access Token mới

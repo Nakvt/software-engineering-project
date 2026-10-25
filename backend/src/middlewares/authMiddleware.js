@@ -19,7 +19,7 @@ module.exports = (req, res, next) => {
     const decoded = jwt.verify(token, jwtConfig.accessSecret);
     req.user = decoded; // Gán thông tin user đã decode vào request
     next();
-  } catch (error) {
+  } catch {
     return res.status(401).json({
       success: false,
       data: null,
