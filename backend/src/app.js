@@ -3,6 +3,7 @@ const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
 const adminPoiRoutes = require('./routes/admin-poi.routes');
 const adminAnalyticsRoutes = require('./routes/admin-analytics.routes');
+const sessionsRoutes = require('./routes/sessions.routes');
 const authMiddleware = require('./middlewares/authMiddleware');
 const requireAdmin = require('./middlewares/requireAdmin');
 
@@ -16,6 +17,7 @@ app.get('/health', (_request, response) => {
 });
 
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/sessions', sessionsRoutes);
 app.use('/api/v1/admin/pois', authMiddleware, requireAdmin, adminPoiRoutes);
 app.use('/api/v1/admin/analytics', authMiddleware, requireAdmin, adminAnalyticsRoutes);
 
