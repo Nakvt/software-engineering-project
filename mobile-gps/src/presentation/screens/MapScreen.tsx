@@ -1,18 +1,62 @@
-import React, { useMemo, useRef } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import React, { useMemo, useRef, useState } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
-import { useGeofencing } from '../hooks/useGeofencing';
-import { POI } from '../../domain/models/POI';
+import { useGeofencing, SupportedLanguage } from '../hooks/useGeofencing';
+import { POI, MultiLangString } from '../../domain/models/POI';
 import { Tour } from '../../domain/models/Tour';
-import { MOCK_POIS } from '../../domain/models/mockPOI';
 import { MOCK_TOURS } from '../../domain/models/mockTour';
 import { TopBar } from '../components/TopBar';
 import { MiniPlayer } from '../components/MiniPlayer';
+import { AudioLib } from '../../libs/audio';
+
+const MOCK_TITLE_MAP: Record<SupportedLanguage, string> = {
+  vi: 'Mô phỏng vị trí GPS:',
+  en: 'GPS Location Simulation:',
+  ja: 'GPS位置シミュレーション:',
+  zh: 'GPS位置模拟:',
+  ko: 'GPS 위치 시뮬레이션:',
+};
+
+const LANGUAGE_LOCALE_MAP: Record<SupportedLanguage, string> = {
+  vi: 'vi-VN',
+  en: 'en-US',
+  ja: 'ja-JP',
+  zh: 'zh-CN',
+  ko: 'ko-KR',
+};
+
+function getTranslationName(
+  name?: string | MultiLangString,
+  lang: SupportedLanguage = 'vi'
+): string {
+  if (!name) return '';
+  if (typeof name === 'string') return name;
+  return name[lang] || name.vi || '';
+}
 
 export const MapScreen: React.FC<any> = ({ navigation, route }) => {
-  const { activePOI, hasPermission, simulateLocation } = useGeofencing(MOCK_POIS, 'vi-VN');
+  const [selectedLang, setSelectedLang] = useState<SupportedLanguage>('vi');
+  const { activePOI, hasPermission, simulateLocation, pois } = useGeofencing([], selectedLang);
   const webViewRef = useRef<WebView>(null);
+
+  // Hàm phát/đọc lại thuyết minh cho POI hiện tại
+  const handleReplayAudio = () => {
+    if (!activePOI) return;
+
+    const ttsScript =
+      typeof activePOI.audio?.ttsScript === 'string'
+        ? activePOI.audio.ttsScript
+        : activePOI.audio?.ttsScript?.[selectedLang] || activePOI.audio?.ttsScript?.vi;
+
+    if (ttsScript) {
+      const locale = LANGUAGE_LOCALE_MAP[selectedLang] || 'vi-VN';
+      console.log(`🔄 [Replay TTS ${selectedLang}]: ${ttsScript}`);
+      AudioLib.playTTS(ttsScript, locale);
+    } else if (activePOI.audio?.audioUrl) {
+      AudioLib.playAudio(activePOI.audio.audioUrl);
+    }
+  };
 
   const selectedTourId = route?.params?.selectedTourId;
   const activeTour = useMemo(
@@ -23,13 +67,17 @@ export const MapScreen: React.FC<any> = ({ navigation, route }) => {
   const tourPOIs = useMemo(() => {
     if (!activeTour) return [];
     return activeTour.poiIds
-      .map((id: string) => MOCK_POIS.find((poi: POI) => poi.id === id))
+      .map((id: string) => pois.find((poi: POI) => poi.id === id))
       .filter((poi): poi is POI => poi !== undefined);
-  }, [activeTour]);
+  }, [activeTour, pois]);
 
-  // Tạo HTML chứa bản đồ Leaflet + OpenStreetMap hoàn chỉnh không cần API Key
   const htmlContent = useMemo(() => {
-    const poisJson = JSON.stringify(MOCK_POIS);
+    const formattedPois = pois.map((poi) => ({
+      ...poi,
+      displayName: getTranslationName(poi.name, selectedLang),
+    }));
+
+    const poisJson = JSON.stringify(formattedPois);
     const tourPoisJson = JSON.stringify(tourPOIs);
 
     return `
@@ -47,20 +95,19 @@ export const MapScreen: React.FC<any> = ({ navigation, route }) => {
         <div id="map"></div>
         <script>
           var map = L.map('map', { zoomControl: false }).setView([16.099123, 108.277456], 17);
-          
+
           L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
-          maxZoom: 19,
-          attribution: '© OpenStreetMap France'
+            maxZoom: 19,
+            attribution: '© OpenStreetMap France'
           }).addTo(map);
 
           var pois = ${poisJson};
           var tourPois = ${tourPoisJson};
 
-          // Vẽ Markers & Circles
-          pois.forEach(function(poi, index) {
+          pois.forEach(function(poi) {
             var marker = L.marker([poi.location.lat, poi.location.lng]).addTo(map);
-            marker.bindPopup("<b>" + poi.name + "</b><br>Bán kính: " + poi.radius + "m");
-            
+            marker.bindPopup("<b>" + poi.displayName + "</b><br>Bán kính: " + poi.radius + "m");
+
             L.circle([poi.location.lat, poi.location.lng], {
               color: '#007AFF',
               fillColor: '#007AFF',
@@ -69,7 +116,6 @@ export const MapScreen: React.FC<any> = ({ navigation, route }) => {
             }).addTo(map);
           });
 
-          // Vẽ đường Tour Polyline nếu có
           if (tourPois.length > 1) {
             var latlngs = tourPois.map(function(p) { return [p.location.lat, p.location.lng]; });
             var polyline = L.polyline(latlngs, { color: '#007AFF', weight: 4 }).addTo(map);
@@ -79,7 +125,7 @@ export const MapScreen: React.FC<any> = ({ navigation, route }) => {
       </body>
       </html>
     `;
-  }, [tourPOIs]);
+  }, [pois, tourPOIs, selectedLang]);
 
   if (!hasPermission) {
     return (
@@ -93,14 +139,14 @@ export const MapScreen: React.FC<any> = ({ navigation, route }) => {
 
   return (
     <View style={styles.container}>
-      {/* 1. Top Bar */}
+      {/* 1. TopBar */}
       <TopBar
-        onPressLanguage={() => console.log('Đổi ngôn ngữ')}
+        currentLanguage={selectedLang}
+        onSelectLanguage={(lang) => setSelectedLang(lang)}
         onPressScanQR={() => navigation.navigate('QRScanner')}
-        onSearchChange={(text) => console.log('Tìm kiếm:', text)}
       />
 
-      {/* 2. Banner hiển thị khi có Tour */}
+      {/* 2. Tour Banner */}
       {activeTour && (
         <View style={styles.tourBanner}>
           <View style={styles.tourBannerInfo}>
@@ -118,7 +164,7 @@ export const MapScreen: React.FC<any> = ({ navigation, route }) => {
         </View>
       )}
 
-      {/* 3. Bản đồ hiển thị qua Leaflet OpenStreetMap */}
+      {/* 3. Bản đồ Leaflet */}
       <WebView
         ref={webViewRef}
         originWhitelist={['*']}
@@ -128,58 +174,47 @@ export const MapScreen: React.FC<any> = ({ navigation, route }) => {
         domStorageEnabled={true}
       />
 
-      {/* 4. Thanh nút bấm mô phỏng vị trí GPS */}
+      {/* 4. Mô phỏng vị trí GPS */}
       <View style={styles.mockControls}>
-        <Text style={styles.mockLabel}>Mô phỏng vị trí GPS:</Text>
-        <View style={styles.mockButtonsRow}>
-          {MOCK_POIS.map((poi: POI, index: number) => (
-            <TouchableOpacity
-              key={poi.id}
-              style={styles.mockButton}
-              onPress={() => {
-                simulateLocation({
-                  lat: poi.location.lat,
-                  lng: poi.location.lng,
-                });
-              }}
-            >
-              <Text style={styles.mockButtonText}>Đến Điểm {index + 1}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <Text style={styles.mockLabel}>{MOCK_TITLE_MAP[selectedLang]}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.mockButtonsRow}>
+          {pois.map((poi) => {
+            const displayName = getTranslationName(poi.name, selectedLang);
+            return (
+              <TouchableOpacity
+                key={poi.id}
+                style={styles.mockButton}
+                onPress={() => simulateLocation(poi.location)}
+              >
+                <Text style={styles.mockButtonText}>{displayName}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
-      {/* 5. Mini Player nổi ở đáy */}
+      {/* 5. MiniPlayer */}
       <MiniPlayer
         poi={activePOI}
         distanceMeters={15}
         isPlaying={true}
+        selectedLanguage={selectedLang}
         onPressCard={() => {
           if (activePOI) {
-            navigation.navigate('AudioPlayer', { poi: activePOI });
+            navigation.navigate('AudioPlayer', { poi: activePOI, selectedLanguage: selectedLang });
           }
         }}
         onPressSelectTour={() => navigation.navigate('Tours')}
+        onPressReplay={handleReplayAudio}
       />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  warningText: {
-    fontSize: 16,
-    textAlign: 'center',
-    color: '#d9534f',
-  },
+  container: { flex: 1 },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  warningText: { fontSize: 16, textAlign: 'center', color: '#d9534f' },
   tourBanner: {
     position: 'absolute',
     top: 110,
@@ -194,25 +229,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
-  tourBannerInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  tourBannerText: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#1c1c1e',
-    marginLeft: 8,
-    flex: 1,
-  },
-  cancelTourBtn: {
-    padding: 4,
-  },
+  tourBannerInfo: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  tourBannerText: { fontSize: 13, fontWeight: 'bold', color: '#1c1c1e', marginLeft: 8, flex: 1 },
+  cancelTourBtn: { padding: 4 },
   mockControls: {
     position: 'absolute',
     bottom: 110,
@@ -223,29 +243,9 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 12,
     elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
-  mockLabel: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#555',
-    marginBottom: 4,
-  },
-  mockButtonsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  mockButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-  },
-  mockButtonText: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
+  mockLabel: { fontSize: 11, fontWeight: 'bold', color: '#555', marginBottom: 6 },
+  mockButtonsRow: { flexDirection: 'row', gap: 8 },
+  mockButton: { backgroundColor: '#007AFF', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8 },
+  mockButtonText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
 });

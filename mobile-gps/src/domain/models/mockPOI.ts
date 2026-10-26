@@ -4,7 +4,20 @@ export const MOCK_POIS: POI[] = [
   {
     id: '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
     code: 'POI_CHANHDIEN_01',
-    name: 'Chánh Điện Chùa Bái Đính',
+    name: {
+      vi: 'Chánh Điện Chùa Bái Đính',
+      en: 'Bai Dinh Main Sanctuary',
+      ja: 'バイディン寺本堂',
+      zh: '拜顶寺正殿',
+      ko: '바이딘 사원 대웅전',
+    },
+    description: {
+      vi: 'Ngôi điện trang nghiêm và quy mô bậc nhất trong quần thể di tích.',
+      en: 'The most solemn and largest sanctuary in the complex.',
+      ja: ' 敷地内で最も 荘厳で 大規模な 本堂です。',
+      zh: '园区内最庄严、规模最大的殿堂。',
+      ko: '단지 내에서 가장 엄숙하고 규모가 큰 대웅전입니다.',
+    },
     location: {
       lat: 16.099123,
       lng: 108.277456,
@@ -15,14 +28,33 @@ export const MOCK_POIS: POI[] = [
     imageUrl: 'https://images.unsplash.com/photo-1548013146-72479768bada?w=600&auto=format&fit=crop&q=80',
     audio: {
       audioUrl: 'https://cdn.example.com/audio/cd_vi_central.mp3',
-      ttsScript: 'Chào mừng bạn đến với Chánh Điện. Đây là nơi trang nghiêm nhất trong khuôn viên.',
+      ttsScript: {
+        vi: 'Chào mừng bạn đến với Chánh Điện. Đây là nơi trang nghiêm nhất trong khuôn viên.',
+        en: 'Welcome to the Main Sanctuary. This is the most solemn place in the complex.',
+        ja: '本堂へようこそ。ここは 敷地内で最も 荘厳な場所です。',
+        zh: '欢迎来到正殿。这是园区内最庄严的地方。',
+        ko: '대웅전에 오신 것을 환영합니다. 이곳은 단지 내에서 가장 엄숙한 곳입니다.',
+      },
       duration: 95,
     },
   },
   {
     id: 'a12deb4d-1c2d-3ef4-5a6b-7c8d9e0f1a2b',
     code: 'POI_TAMQUAN_02',
-    name: 'Cổng Tam Quan',
+    name: {
+      vi: 'Cổng Tam Quan',
+      en: 'Tam Quan Gate',
+      ja: '三門',
+      zh: '三观门',
+      ko: '삼관문',
+    },
+    description: {
+      vi: 'Cổng lối vào chính được xây dựng theo kiến trúc cổ truyền.',
+      en: 'Main entrance gate built in traditional architectural style.',
+      ja: ' 伝統的な 建築様式で 建てられた メインゲートです。',
+      zh: '采用传统建筑风格建造的主入口门。',
+      ko: '전통 건축 양식으로 지어진 정문입니다.',
+    },
     location: {
       lat: 16.0995,
       lng: 108.2778,
@@ -33,14 +65,33 @@ export const MOCK_POIS: POI[] = [
     imageUrl: 'https://images.unsplash.com/photo-1599707367072-cd6ada2bc375?w=600&auto=format&fit=crop&q=80',
     audio: {
       audioUrl: 'https://cdn.example.com/audio/tq_vi_central.mp3',
-      ttsScript: 'Bạn đang đứng trước Cổng Tam Quan, điểm khởi đầu cho hành trình tham quan.',
+      ttsScript: {
+        vi: 'Bạn đang đứng trước Cổng Tam Quan, điểm khởi đầu cho hành trình tham quan.',
+        en: 'You are standing in front of Tam Quan Gate, the starting point for your tour.',
+        ja: '見学ツアーの 出発点である 三門の前に 立っています。',
+        zh: '您正站在三观门前，这是游览行程的起点。',
+        ko: '투어의 시작점인 삼관문 앞에 서 계십니다.',
+      },
       duration: 180,
     },
   },
   {
     id: 'b34deb4d-9f8e-7d6c-5b4a-3e2d1c0b9a8f',
     code: 'POI_THAPCHUONG_03',
-    name: 'Tháp Chuông',
+    name: {
+      vi: 'Tháp Chuông',
+      en: 'Bell Tower',
+      ja: '鐘楼',
+      zh: '钟楼',
+      ko: '종각',
+    },
+    description: {
+      vi: 'Tháp chuông bát giác bằng gỗ lưu giữ đại hồng chung nặng 36 tấn.',
+      en: 'Octagonal wooden bell tower housing a 36-ton bronze bell.',
+      ja: '36トンの 大梵鐘を 納めた 八角形の 木造鐘楼。',
+      zh: '存放着重达36吨大铜钟的八角形木结构钟楼。',
+      ko: '36톤 무게의 대범종이 안치된 팔각 목조 종각입니다.',
+    },
     location: {
       lat: 16.0988,
       lng: 108.277,
@@ -51,7 +102,13 @@ export const MOCK_POIS: POI[] = [
     imageUrl: 'https://images.unsplash.com/photo-1528127269322-539801943592?w=600&auto=format&fit=crop&q=80',
     audio: {
       audioUrl: 'https://cdn.example.com/audio/tc_vi_central.mp3',
-      ttsScript: 'Trước mắt bạn là Tháp Chuông bát giác, nơi đặt chiếc đại hồng chung nặng 36 tấn.',
+      ttsScript: {
+        vi: 'Trước mắt bạn là Tháp Chuông bát giác, nơi đặt chiếc đại hồng chung nặng 36 tấn.',
+        en: 'In front of you is the octagonal Bell Tower, housing a bronze bell weighing 36 tons.',
+        ja: '目の前にあるのは、36トンの 大梵鐘が 納められた 八角形の 鐘楼です。',
+        zh: '在您眼前的是八角形钟楼，里面存放着重达36吨的大铜钟。',
+        ko: '눈앞에 보이는 것은 36톤 무게의 대범종이 안치된 팔각 종각입니다.',
+      },
       duration: 150,
     },
   },

@@ -1,0 +1,211 @@
+.container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  overflow: hidden;
+}
+
+.leftSection {
+  flex: 1;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding-left: 12%;
+  position: relative;
+}
+
+.circle1, .circle2, .circle3 {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.08);
+}
+
+.circle1 { width: 180px; height: 180px; top: 8%; left: 8%; }
+.circle2 { width: 120px; height: 120px; bottom: 10%; left: 15%; }
+.circle3 { width: 90px; height: 90px; top: 35%; right: 18%; }
+
+.greeting {
+  font-size: 2.2rem;
+  font-weight: 300;
+  margin: 0 0 0.5rem 0;
+  color: #cbd5e1;
+  letter-spacing: 1px;
+}
+
+.mainText {
+  font-size: 3.2rem;
+  font-weight: 800;
+  line-height: 1.15;
+  margin: 0;
+  color: #ffffff;
+  letter-spacing: 1.5px;
+}
+
+.rightSection {
+  flex: 1;
+  background-color: #f8fafc;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+.rightDecor {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 120px;
+  height: 120px;
+  background: radial-gradient(circle at top right, #1e293b 40%, transparent 41%);
+  opacity: 0.85;
+}
+
+.topIcon {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #94a3b8;
+  border-radius: 50%;
+  margin-bottom: 1rem;
+}
+
+.loginForm {
+  background: rgba(255, 255, 255, 0.9);
+  padding: 3rem 2.5rem;
+  border-radius: 20px;
+  width: 85%;
+  max-width: 420px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.formTitle {
+  font-size: 2.4rem;
+  color: #0f172a;
+  margin: 0 0 2rem 0;
+  font-weight: 700;
+}
+
+.inputGroup {
+  width: 100%;
+  margin-bottom: 1.2rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.inputGroup label {
+  font-size: 0.88rem;
+  color: #64748b;
+  margin-bottom: 0.4rem;
+  align-self: flex-start;
+  font-weight: 500;
+}
+
+.inputGroup input {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  font-size: 0.95rem;
+  color: #0f172a;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+.inputGroup input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* Khung chứa input password và nút icon con mắt */
+.passwordWrapper {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.passwordWrapper input {
+  padding-right: 45px; /* Tạo khoảng trống để không bị đè chữ lên icon */
+}
+
+.eyeButton {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.eyeButton:hover {
+  color: #0f172a;
+}
+
+.forgotPassword {
+  font-size: 0.8rem;
+  color: #64748b;
+  text-decoration: none;
+  align-self: flex-end;
+  margin-top: -0.3rem;
+  margin-bottom: 1.8rem;
+}
+
+.forgotPassword:hover {
+  color: #2563eb;
+}
+
+.loginButton {
+  width: 100%;
+  padding: 0.9rem;
+  border: none;
+  border-radius: 10px;
+  background-color: #0f172a;
+  color: #ffffff;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.loginButton:hover {
+  background-color: #1e293b;
+}
+
+.loginButton:active {
+  transform: scale(0.98);
+}
+.errorBanner {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.2rem;
+  background-color: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  color: #991b1b;
+  font-size: 0.875rem;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.loginButton:disabled {
+  background-color: #64748b;
+  cursor: not-allowed;
+  transform: none;
+}
