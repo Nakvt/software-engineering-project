@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { analyticsApi, MOCK_SESSION_ERROR } from '../../data/api/analyticsApi';
+
+const ONLINE_SESSIONS_REFRESH_MS = 30_000;
 
 interface AdminDashboardScreenProps {
   onLogout?: () => void;
@@ -52,7 +55,7 @@ const ADMIN_TRANSLATIONS: Record<string, Record<string, string>> = {
     createTourBtn: 'Khởi tạo Tour',
     tourListTitle: 'Danh sách Tour hiện tại',
     analyticsHeader: 'Tương tác & Spatial Heatmap',
-    activeDevices: 'THIẾT BỊ ĐANG HIỆN HÀNH',
+    activeDevices: 'PHIÊN ĐANG ONLINE',
     totalStreams: 'TỔNG LƯỢT NGHE',
     avgDuration: 'THỜI LƯỢNG NGHE TRUNG BÌNH',
     topPoi: 'TOP POI ĐƯỢC NGHE NHIỀU NHẤT',
@@ -94,7 +97,7 @@ const ADMIN_TRANSLATIONS: Record<string, Record<string, string>> = {
     createTourBtn: 'Initialize Tour',
     tourListTitle: 'Current Tour List',
     analyticsHeader: 'Interactions & Spatial Heatmap',
-    activeDevices: 'ACTIVE DEVICES',
+    activeDevices: 'ONLINE SESSIONS',
     totalStreams: 'TOTAL STREAMS',
     avgDuration: 'AVERAGE LISTENING DURATION',
     topPoi: 'TOP MOST LISTENED POI',
@@ -136,7 +139,7 @@ const ADMIN_TRANSLATIONS: Record<string, Record<string, string>> = {
     createTourBtn: '初始化路线',
     tourListTitle: '当前路线列表',
     analyticsHeader: '互动与空间热力图',
-    activeDevices: '当前活跃设备',
+    activeDevices: '在线会话数',
     totalStreams: '总收听次数',
     avgDuration: '平均收听时长',
     topPoi: '最热门 POI',
@@ -178,7 +181,7 @@ const ADMIN_TRANSLATIONS: Record<string, Record<string, string>> = {
     createTourBtn: 'ツアーを作成',
     tourListTitle: '現在のツアーリスト',
     analyticsHeader: 'インタラクション & スペシャルヒートマップ',
-    activeDevices: 'アクティブデバイス',
+    activeDevices: 'オンラインセッション数',
     totalStreams: '総ストリーミング数',
     avgDuration: '平均リスニング時間',
     topPoi: '最も聴かれた POI',
@@ -220,7 +223,7 @@ const ADMIN_TRANSLATIONS: Record<string, Record<string, string>> = {
     createTourBtn: '투어 초기화',
     tourListTitle: '현재 투어 목록',
     analyticsHeader: '상호 작용 및 공간 히트맵',
-    activeDevices: '현재 활성 기기',
+    activeDevices: '온라인 세션 수',
     totalStreams: '총 스트림',
     avgDuration: '평균 청취 시간',
     topPoi: '가장 많이 청취된 POI',
@@ -373,7 +376,40 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
   const t = ADMIN_TRANSLATIONS[currentLang] || ADMIN_TRANSLATIONS['vi'];
   const selectedLangObj = SUPPORTED_LANGUAGES.find(l => l.code === currentLang) || SUPPORTED_LANGUAGES[0];
 
-  const [activeUsersCount] = useState<number>(0);
+  const [onlineSessions, setOnlineSessions] = useState<number | null>(null);
+  const [onlineSessionsLoading, setOnlineSessionsLoading] = useState<boolean>(true);
+  const [onlineSessionsError, setOnlineSessionsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeTab !== 'analytics') return;
+
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const data = await analyticsApi.getOnlineSessions();
+        if (cancelled) return;
+        setOnlineSessions(data.onlineSessions);
+        setOnlineSessionsError(null);
+      } catch (error) {
+        if (cancelled) return;
+        setOnlineSessions(null);
+        setOnlineSessionsError(
+          error instanceof Error && error.message === MOCK_SESSION_ERROR
+            ? 'Đăng nhập demo (mock) không có token thật nên không gọi được API.'
+            : 'Không tải được số phiên online.',
+        );
+      } finally {
+        if (!cancelled) setOnlineSessionsLoading(false);
+      }
+    };
+
+    void load();
+    const timer = window.setInterval(() => void load(), ONLINE_SESSIONS_REFRESH_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [activeTab]);
 
   const [totalStreams, setTotalStreams] = useState<number>(() => {
     const saved = localStorage.getItem('tourist_total_streams');
@@ -812,7 +848,12 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
                 <div style={{ backgroundColor: '#FFFFFF', padding: '20px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
                   <div style={{ fontSize: '12px', color: '#64748B', fontWeight: 600, marginBottom: '8px' }}>{t.activeDevices}</div>
-                  <div style={{ fontSize: '26px', fontWeight: 800, color: '#2563EB' }}>{activeUsersCount}</div>
+                  <div style={{ fontSize: '26px', fontWeight: 800, color: onlineSessionsError ? '#94A3B8' : '#2563EB' }}>
+                    {onlineSessionsLoading ? '...' : onlineSessions === null ? '—' : onlineSessions.toLocaleString()}
+                  </div>
+                  {onlineSessionsError && (
+                    <div style={{ fontSize: '11px', color: '#DC2626', marginTop: '6px' }}>{onlineSessionsError}</div>
+                  )}
                 </div>
                 <div style={{ backgroundColor: '#FFFFFF', padding: '20px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
                   <div style={{ fontSize: '12px', color: '#64748B', fontWeight: 600, marginBottom: '8px' }}>{t.totalStreams}</div>
