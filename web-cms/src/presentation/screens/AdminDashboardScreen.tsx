@@ -12,11 +12,11 @@ interface LanguageOption {
 }
 
 const LANGUAGES: LanguageOption[] = [
-  { code: 'vi', name: 'Vietnamese', flag: 'https://flagcdn.com/w40/vn.png', speechLang: 'vi-VN' },
-  { code: 'en', name: 'English', flag: 'https://flagcdn.com/w40/gb.png', speechLang: 'en-US' },
-  { code: 'zh', name: 'Chinese', flag: 'https://flagcdn.com/w40/cn.png', speechLang: 'zh-CN' },
-  { code: 'ja', name: 'Japanese', flag: 'https://flagcdn.com/w40/jp.png', speechLang: 'ja-JP' },
-  { code: 'ko', name: 'korean', flag: 'https://flagcdn.com/w40/kr.png', speechLang: 'ko-KR' },
+  { code: 'vi', name: 'Tiếng Việt', flag: 'https://flagcdn.com/w40/vn.png', speechLang: 'vi-VN' },
+  { code: 'en', name: 'Tiếng Anh', flag: 'https://flagcdn.com/w40/gb.png', speechLang: 'en-US' },
+  { code: 'zh', name: 'Tiếng Trung', flag: 'https://flagcdn.com/w40/cn.png', speechLang: 'zh-CN' },
+  { code: 'ja', name: 'Tiếng Nhật', flag: 'https://flagcdn.com/w40/jp.png', speechLang: 'ja-JP' },
+  { code: 'ko', name: 'Tiếng Hàn', flag: 'https://flagcdn.com/w40/kr.png', speechLang: 'ko-KR' },
 ];
 
 const ADMIN_TRANSLATIONS: Record<string, Record<string, string>> = {
@@ -343,7 +343,6 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
   const t = ADMIN_TRANSLATIONS[currentLang] || ADMIN_TRANSLATIONS['vi'];
   const selectedLangObj = LANGUAGES.find(l => l.code === currentLang) || LANGUAGES[0];
 
-  // Tích hợp lấy số phiên thiết bị online từ API backend và tự động làm mới mỗi 30 giây (PR #31)
   const [activeUsersCount, setActiveUsersCount] = useState<number>(0);
 
   useEffect(() => {
@@ -360,7 +359,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
     };
 
     fetchActiveSessions();
-    const intervalId = setInterval(fetchActiveSessions, 30000); // 30 giây refresh 1 lần
+    const intervalId = setInterval(fetchActiveSessions, 30000);
     return () => clearInterval(intervalId);
   }, []);
 
