@@ -2,8 +2,10 @@ import axios from 'axios';
 import type { InternalAxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 import { authStorage } from '../storage/authStorage';
 
+const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+
 const apiClient = axios.create({
-  baseURL: 'http://localhost:3000/api/v1',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -33,7 +35,7 @@ apiClient.interceptors.response.use(
 
       if (refreshToken) {
         try {
-          const res = await axios.post('http://localhost:3000/api/v1/auth/refresh-token', {
+          const res = await axios.post(`${API_BASE_URL}/auth/refresh-token`, {
             refreshToken,
           });
 
