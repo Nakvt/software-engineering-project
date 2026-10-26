@@ -16,7 +16,7 @@ const LANGUAGES: LanguageOption[] = [
   { code: 'en', name: 'English', flag: 'https://flagcdn.com/w40/gb.png', speechLang: 'en-US' },
   { code: 'zh', name: 'Chinese', flag: 'https://flagcdn.com/w40/cn.png', speechLang: 'zh-CN' },
   { code: 'ja', name: 'Japanese', flag: 'https://flagcdn.com/w40/jp.png', speechLang: 'ja-JP' },
-  { code: 'ko', name: 'Korean', flag: 'https://flagcdn.com/w40/kr.png', speechLang: 'ko-KR' },
+  { code: 'ko', name: 'korean', flag: 'https://flagcdn.com/w40/kr.png', speechLang: 'ko-KR' },
 ];
 
 const ADMIN_TRANSLATIONS: Record<string, Record<string, string>> = {
@@ -25,7 +25,7 @@ const ADMIN_TRANSLATIONS: Record<string, Record<string, string>> = {
     navPoi: 'Quản lý POI & Nội dung',
     navTour: 'Quản lý Tour & QR Code',
     navAnalytics: 'Tương tác & Spatial Heatmap',
-    logout: 'Đăng xuất',
+    logout: 'Đăng xuất hệ thống',
     cmsHeader: 'Quản lý Trung tâm Địa điểm POI & Thuyết minh Đa ngôn ngữ',
     addPoiTitle: 'Thêm Địa Điểm POI Mới',
     poiNamePlaceholder: 'Tên địa điểm POI...',
@@ -44,10 +44,10 @@ const ADMIN_TRANSLATIONS: Record<string, Record<string, string>> = {
     tourListTitle: 'Danh sách Tour hiện tại',
     analyticsHeader: 'Tương tác & Spatial Heatmap',
     activeDevices: 'THIẾT BỊ ĐANG HIỆN HÀNH',
-    totalStreams: 'TỔNG LƯỢT NGHE',
+    totalStreams: 'TỔNG LƯỢT NGHE (ANONYMOUS)',
     avgDuration: 'THỜI LƯỢNG NGHE TRUNG BÌNH',
     topPoi: 'TOP POI ĐƯỢC NGHE NHIỀU NHẤT',
-    heatmapTitle: 'Bản đồ nhiệt',
+    heatmapTitle: 'Bản đồ nhiệt (Spatial Heatmap)',
     heatmapDesc: 'Hiển thị trực quan điểm nóng kèm theo tên của từng POI trong hệ thống.',
     close: 'Đóng',
     qrTitle: 'Mã QR Địa Điểm',
@@ -67,7 +67,7 @@ const ADMIN_TRANSLATIONS: Record<string, Record<string, string>> = {
     navPoi: 'POI & Content Management',
     navTour: 'Tour & QR Code Management',
     navAnalytics: 'Analytics & Spatial Heatmap',
-    logout: 'Logout',
+    logout: 'Logout System',
     cmsHeader: 'CMS Location Center & Multi-language Narration',
     addPoiTitle: 'Add New POI Location',
     poiNamePlaceholder: 'POI location name...',
@@ -86,7 +86,7 @@ const ADMIN_TRANSLATIONS: Record<string, Record<string, string>> = {
     tourListTitle: 'Current Tour List',
     analyticsHeader: 'Interactions & Spatial Heatmap',
     activeDevices: 'ACTIVE DEVICES',
-    totalStreams: 'TOTAL STREAMS',
+    totalStreams: 'TOTAL STREAMS (ANONYMOUS)',
     avgDuration: 'AVERAGE LISTENING DURATION',
     topPoi: 'TOP MOST LISTENED POI',
     heatmapTitle: 'Spatial Heatmap',
@@ -109,7 +109,7 @@ const ADMIN_TRANSLATIONS: Record<string, Record<string, string>> = {
     navPoi: 'POI 与内容管理',
     navTour: '旅游路线与二维码管理',
     navAnalytics: '互动与空间热力图',
-    logout: '退出登录',
+    logout: '退出系统',
     cmsHeader: 'CMS 地点中心与多语言讲解管理',
     addPoiTitle: '添加新 POI 地点',
     poiNamePlaceholder: 'POI 地点名称...',
@@ -128,7 +128,7 @@ const ADMIN_TRANSLATIONS: Record<string, Record<string, string>> = {
     tourListTitle: '当前路线列表',
     analyticsHeader: '互动与空间热力图',
     activeDevices: '当前活跃设备',
-    totalStreams: '总收听次数',
+    totalStreams: '总收听次数 (匿名)',
     avgDuration: '平均收听时长',
     topPoi: '最热门 POI',
     heatmapTitle: '空间热力图',
@@ -151,7 +151,7 @@ const ADMIN_TRANSLATIONS: Record<string, Record<string, string>> = {
     navPoi: 'POI & コンテンツ管理',
     navTour: 'ツアー & QRコード管理',
     navAnalytics: 'インタラクション & ヒートマップ',
-    logout: 'ログアウト',
+    logout: 'システムからログアウト',
     cmsHeader: 'CMS ロケーションセンター & 多言語音声ガイド',
     addPoiTitle: '新規 POI 場所の追加',
     poiNamePlaceholder: 'POI名...',
@@ -170,7 +170,7 @@ const ADMIN_TRANSLATIONS: Record<string, Record<string, string>> = {
     tourListTitle: '現在のツアーリスト',
     analyticsHeader: 'インタラクション & スペシャルヒートマップ',
     activeDevices: 'アクティブデバイス',
-    totalStreams: '総ストリーミング数',
+    totalStreams: '総ストリーミング数 (匿名)',
     avgDuration: '平均リスニング時間',
     topPoi: '最も聴かれた POI',
     heatmapTitle: 'スペシャルヒートマップ',
@@ -193,7 +193,7 @@ const ADMIN_TRANSLATIONS: Record<string, Record<string, string>> = {
     navPoi: 'POI 및 콘텐츠 관리',
     navTour: '투어 및 QR 코드 관리',
     navAnalytics: '상호 작용 및 히트맵',
-    logout: '로그아웃',
+    logout: '시스템 로그아웃',
     cmsHeader: 'CMS 위치 센터 및 다국어 해설 관리',
     addPoiTitle: '새 POI 위치 추가',
     poiNamePlaceholder: 'POI 위치 이름...',
@@ -212,7 +212,7 @@ const ADMIN_TRANSLATIONS: Record<string, Record<string, string>> = {
     tourListTitle: '현재 투어 목록',
     analyticsHeader: '상호 작용 및 공간 히트맵',
     activeDevices: '현재 활성 기기',
-    totalStreams: '총 스트림',
+    totalStreams: '총 스트림 (익명)',
     avgDuration: '평균 청취 시간',
     topPoi: '가장 많이 청취된 POI',
     heatmapTitle: '공간 히트맵',
@@ -343,9 +343,27 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
   const t = ADMIN_TRANSLATIONS[currentLang] || ADMIN_TRANSLATIONS['vi'];
   const selectedLangObj = LANGUAGES.find(l => l.code === currentLang) || LANGUAGES[0];
 
-  const [activeUsersCount] = useState<number>(0);
+  // Tích hợp lấy số phiên thiết bị online từ API backend và tự động làm mới mỗi 30 giây (PR #31)
+  const [activeUsersCount, setActiveUsersCount] = useState<number>(0);
 
-  // Đổi giá trị khởi tạo từ 12450 thành 199
+  useEffect(() => {
+    const fetchActiveSessions = async () => {
+      try {
+        const response = await fetch('/api/admin/online-sessions');
+        if (response.ok) {
+          const data = await response.json();
+          setActiveUsersCount(data.count ?? data.activeCount ?? 0);
+        }
+      } catch (error) {
+        console.error('Failed to fetch online sessions:', error);
+      }
+    };
+
+    fetchActiveSessions();
+    const intervalId = setInterval(fetchActiveSessions, 30000); // 30 giây refresh 1 lần
+    return () => clearInterval(intervalId);
+  }, []);
+
   const [totalStreams, setTotalStreams] = useState<number>(() => {
     const saved = localStorage.getItem('tourist_total_streams');
     return saved ? Number(saved) : 199;
