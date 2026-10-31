@@ -1,0 +1,15 @@
+$kind: http-request
+name: http://localhost:5000/api/v1/pois
+description: ""
+url: http://localhost:5000/api/v1/pois?lang=vi&accent=neutral
+method: GET
+queryParams:
+  - key: lang
+    value: vi
+    disabled: false
+    description: ""
+  - key: accent
+    value: neutral
+    disabled: false
+    description: ""
+order: 1000

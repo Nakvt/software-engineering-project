@@ -1,0 +1,21 @@
+$kind: http-request
+name: http://localhost:5000/api/v1/tracking/ping
+description: ""
+url: http://localhost:5000/api/v1/tracking/ping
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \  \"sessionId\": \"a73985d2-f67a-42c2-8419-58b9f36fba7c\",\r
+
+    \  \"latitude\": 16.099120,\r
+
+    \  \"longitude\": 108.277450,\r
+
+    \  \"lang\": \"vi\",\r
+
+    \  \"accent\": \"neutral\"\r
+
+    }\r\n"
+order: 3000
