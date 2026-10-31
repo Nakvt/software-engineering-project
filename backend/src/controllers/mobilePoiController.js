@@ -1,17 +1,21 @@
 const mobilePoiService = require('../services/mobilePoiService');
 
 class MobilePoiController {
-  // 2.1. GET /api/v1/pois - Lấy danh sách POI trên bản đồ
+  /**
+   * 2.1. GET /api/v1/pois - Lấy danh sách POI trên bản đồ
+   * Hỗ trợ Query Params: ?lang=vi|en|ja|zh&accent=north|central|south|neutral&lat=...&lng=...
+   */
   async getPois(req, res) {
     try {
       const { lat, lng, lang = 'vi', accent = 'neutral' } = req.query;
 
-      const parsedLat = lat !== undefined ? parseFloat(lat) : null;
-      const parsedLng = lng !== undefined ? parseFloat(lng) : null;
+      const parsedLat = lat !== undefined && lat !== '' ? parseFloat(lat) : null;
+      const parsedLng = lng !== undefined && lng !== '' ? parseFloat(lng) : null;
 
+      // Validate tọa độ GPS nếu có truyền lên
       if (
-        (lat !== undefined && (isNaN(parsedLat) || parsedLat < -90 || parsedLat > 90)) ||
-        (lng !== undefined && (isNaN(parsedLng) || parsedLng < -180 || parsedLng > 180))
+        (parsedLat !== null && (isNaN(parsedLat) || parsedLat < -90 || parsedLat > 90)) ||
+        (parsedLng !== null && (isNaN(parsedLng) || parsedLng < -180 || parsedLng > 180))
       ) {
         return res.status(400).json({
           success: false,
@@ -21,21 +25,25 @@ class MobilePoiController {
         });
       }
 
+      // Chuẩn hóa mã ngôn ngữ về viết thường (ví dụ: 'EN' -> 'en')
+      const normalizedLang = String(lang).trim().toLowerCase();
+      const normalizedAccent = String(accent).trim().toLowerCase();
+
       const pois = await mobilePoiService.getPois({
         lat: parsedLat,
         lng: parsedLng,
-        lang: lang.trim(),
-        accent: accent.trim(),
+        lang: normalizedLang,
+        accent: normalizedAccent,
       });
 
       return res.status(200).json({
         success: true,
-        data: pois,
+        data: pois || [],
         error: null,
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      console.error('Error in getPois:', error);
+      console.error('❌ Error in getPois:', error);
       return res.status(500).json({
         success: false,
         data: null,
@@ -45,7 +53,10 @@ class MobilePoiController {
     }
   }
 
-  // 2.2. GET /api/v1/pois/by-code/:code - Quét QR Code lấy chi tiết POI
+  /**
+   * 2.2. GET /api/v1/pois/by-code/:code - Quét QR Code lấy chi tiết POI
+   * Hỗ trợ Query Params: ?lang=vi|en|ja|zh&accent=...
+   */
   async getPoiByCode(req, res) {
     try {
       const { code } = req.params;
@@ -60,7 +71,15 @@ class MobilePoiController {
         });
       }
 
-      const poi = await mobilePoiService.getPoiByCode(code.trim(), lang.trim(), accent.trim());
+      const normalizedCode = String(code).trim();
+      const normalizedLang = String(lang).trim().toLowerCase();
+      const normalizedAccent = String(accent).trim().toLowerCase();
+
+      const poi = await mobilePoiService.getPoiByCode(
+        normalizedCode,
+        normalizedLang,
+        normalizedAccent
+      );
 
       if (!poi) {
         return res.status(404).json({
@@ -78,7 +97,7 @@ class MobilePoiController {
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      console.error('Error in getPoiByCode:', error);
+      console.error('❌ Error in getPoiByCode:', error);
       return res.status(500).json({
         success: false,
         data: null,
@@ -88,7 +107,9 @@ class MobilePoiController {
     }
   }
 
-  // 2.3. POST /api/v1/tracking/ping - Gửi tọa độ & kiểm tra Geofence
+  /**
+   * 2.3. POST /api/v1/tracking/ping - Gửi tọa độ & kiểm tra Geofence
+   */
   async pingGeofence(req, res) {
     try {
       const { sessionId, latitude, longitude, lang = 'vi', accent = 'neutral' } = req.body;
@@ -106,8 +127,8 @@ class MobilePoiController {
         sessionId,
         latitude,
         longitude,
-        lang: lang.trim(),
-        accent: accent.trim(),
+        lang: String(lang).trim().toLowerCase(),
+        accent: String(accent).trim().toLowerCase(),
       });
 
       return res.status(200).json({
@@ -117,7 +138,7 @@ class MobilePoiController {
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      console.error('Error in pingGeofence:', error);
+      console.error('❌ Error in pingGeofence:', error);
       return res.status(500).json({
         success: false,
         data: null,
@@ -127,10 +148,18 @@ class MobilePoiController {
     }
   }
 
-  // 2.4. POST /api/v1/analytics/listen-event - Ghi nhận nhật ký nghe
+  /**
+   * 2.4. POST /api/v1/analytics/listen-event - Ghi nhận nhật ký nghe
+   */
   async logListenEvent(req, res) {
     try {
-      const { sessionId, poiId, triggerType, durationListenedSeconds = 0, completed = false } = req.body;
+      const {
+        sessionId,
+        poiId,
+        triggerType,
+        durationListenedSeconds = 0,
+        completed = false,
+      } = req.body;
 
       if (!sessionId || !poiId || !['geofence', 'qr_code', 'manual'].includes(triggerType)) {
         return res.status(400).json({
@@ -145,8 +174,8 @@ class MobilePoiController {
         sessionId,
         poiId,
         triggerType,
-        durationListenedSeconds,
-        completed,
+        durationListenedSeconds: Number(durationListenedSeconds) || 0,
+        completed: Boolean(completed),
       });
 
       return res.status(200).json({
@@ -156,7 +185,7 @@ class MobilePoiController {
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      console.error('Error in logListenEvent:', error);
+      console.error('❌ Error in logListenEvent:', error);
       return res.status(500).json({
         success: false,
         data: null,

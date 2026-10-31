@@ -22,7 +22,11 @@ class AudioQueueServiceClass {
     // 1. Kiểm tra Cooldown: Nếu POI đang trong thời gian cooldown thì bỏ qua
     const cooldownUntil = this.cooldownMap.get(poi.id) || 0;
     if (now < cooldownUntil) {
-      console.log(`⏱️ [Queue] POI ${poi.code} đang trong thời gian cooldown (${Math.ceil((cooldownUntil - now) / 1000)}s)`);
+      console.log(
+        `⏱️ [Queue] POI ${poi.code} đang trong thời gian cooldown (${Math.ceil(
+          (cooldownUntil - now) / 1000
+        )}s)`
+      );
       return false;
     }
 
@@ -40,13 +44,46 @@ class AudioQueueServiceClass {
     this.queue.push(newItem);
 
     // 4. Sắp xếp hàng chờ theo độ ưu tiên Priority (Ưu tiên cao hơn đứng trước)
-    this.queue.sort((a, b) => b.poi.priority - a.poi.priority);
+    this.queue.sort((a, b) => (b.poi.priority || 0) - (a.poi.priority || 0));
 
-    console.log(`📥 [Queue] Đã thêm ${poi.code} vào hàng chờ. Độ dài hàng chờ: ${this.queue.length}`);
+    console.log(
+      `📥 [Queue] Đã thêm ${poi.code} vào hàng chờ (Ngôn ngữ: ${language}). Độ dài hàng chờ: ${this.queue.length}`
+    );
 
     // Kích hoạt tiến trình xử lý hàng chờ
     this.processQueue();
     return true;
+  }
+
+  /**
+   * Trích xuất văn bản kịch bản thuyết minh theo đúng ngôn ngữ chọn
+   */
+  private extractTtsScript(poi: any, language: string): string | null {
+    if (!poi) return null;
+
+    // 1. Trường hợp ttsScript là Object đa ngôn ngữ { vi: "...", en: "...", ja: "..." } (Mock Data)
+    if (typeof poi.audio?.ttsScript === 'object' && poi.audio?.ttsScript !== null) {
+      const script = poi.audio.ttsScript[language] || poi.audio.ttsScript.vi;
+      if (script) return script;
+    }
+
+    // 2. Trường hợp ttsScript là String đơn nhận trực tiếp từ Backend API
+    if (typeof poi.audio?.ttsScript === 'string' && poi.audio.ttsScript.trim() !== '') {
+      return poi.audio.ttsScript;
+    }
+
+    // 3. Trường hợp dữ liệu Backend có mảng translations: [{ lang: 'ja', description: '...' }]
+    if (Array.isArray(poi.translations)) {
+      const matchedTrans = poi.translations.find(
+        (t: any) => t.lang === language || t.language === language || t.language_code === language
+      );
+      if (matchedTrans && (matchedTrans.tts_script || matchedTrans.description || matchedTrans.name)) {
+        return matchedTrans.tts_script || matchedTrans.description || matchedTrans.name;
+      }
+    }
+
+    // 4. Fallback cuối cùng: Dùng description hoặc name
+    return poi.description || poi.name || null;
   }
 
   /**
@@ -66,56 +103,51 @@ class AudioQueueServiceClass {
     }
 
     const { poi, language } = this.currentItem;
-    console.log(`▶️ [Queue] Bắt đầu phát thuyết minh POI: ${poi.code} (Priority: ${poi.priority})`);
+    console.log(
+      `▶️ [Queue] Bắt đầu phát thuyết minh POI: ${poi.code} (Ngôn ngữ: ${language}, Priority: ${poi.priority})`
+    );
 
-    // Trích xuất kịch bản thuyết minh TTS theo ngôn ngữ
-    const ttsScript =
-      typeof poi.audio?.ttsScript === 'string'
-        ? poi.audio.ttsScript
-        : poi.audio?.ttsScript?.[language as keyof typeof poi.audio.ttsScript] || poi.audio?.ttsScript?.vi;
+    try {
+      const ttsScript = this.extractTtsScript(poi, language);
 
-    if (ttsScript) {
-      const localeMap: Record<string, string> = {
-        vi: 'vi-VN',
-        en: 'en-US',
-        ja: 'ja-JP',
-        zh: 'zh-CN',
-        ko: 'ko-KR',
-      };
-      const locale = localeMap[language] || 'vi-VN';
+      if (ttsScript) {
+        const localeMap: Record<string, string> = {
+          vi: 'vi-VN',
+          en: 'en-US',
+          ja: 'ja-JP',
+          zh: 'zh-CN',
+          ko: 'ko-KR',
+        };
+        const locale = localeMap[language] || 'vi-VN';
 
-      // Gọi thư viện phát TTS
-      AudioLib.playTTS(ttsScript, locale);
-    } else if (poi.audio?.audioUrl) {
-      AudioLib.playAudio(poi.audio.audioUrl);
+        console.log(`🔊 [Replay TTS ${language}]: ${ttsScript.substring(0, 60)}...`);
+
+        // Gọi thư viện phát TTS
+        AudioLib.playTTS(ttsScript, locale);
+      } else if (poi.audio?.audioUrl) {
+        AudioLib.playAudio(poi.audio.audioUrl);
+      }
+    } catch (error) {
+      console.error(`❌ [Queue Error] Lỗi khi phát âm thanh cho POI ${poi.code}:`, error);
     }
 
-    // Thiết lập thời gian Cooldown cho POI này sau khi bắt đầu phát
     const cooldownDuration = (poi.cooldownSeconds || 300) * 1000;
     this.cooldownMap.set(poi.id, Date.now() + cooldownDuration);
 
-    // Giả lập/theo dõi thời lượng phát audio để chuyển bài tiếp theo
     const durationMs = (poi.audio?.duration || 10) * 1000;
     setTimeout(() => {
       this.onAudioFinished();
     }, durationMs);
   }
 
-  /**
-   * Khi bài thuyết minh phát xong
-   */
   private onAudioFinished(): void {
     console.log(`✅ [Queue] Hoàn thành bài thuyết minh: ${this.currentItem?.poi.code}`);
     this.currentItem = null;
     this.isProcessing = false;
 
-    // Tiếp tục phát POI tiếp theo trong hàng chờ (nếu có)
     this.processQueue();
   }
 
-  /**
-   * Dừng phát ngay lập tức và xoá sạch hàng chờ
-   */
   public clearQueue(): void {
     this.queue = [];
     this.currentItem = null;
@@ -124,13 +156,9 @@ class AudioQueueServiceClass {
     console.log('🧹 [Queue] Đã dọn sạch hàng chờ thuyết minh.');
   }
 
-  /**
-   * Lấy POI đang phát hiện tại
-   */
   public getCurrentPOI(): POI | null {
     return this.currentItem?.poi || null;
   }
 }
 
-// Export một Singleton Instance dùng chung toàn ứng dụng
 export const AudioQueueService = new AudioQueueServiceClass();

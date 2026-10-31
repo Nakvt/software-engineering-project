@@ -1,0 +1,8 @@
+$kind: http-request
+name: http://localhost:5000/api/v1/pois/by-code/POI_CHANHDIEN_01
+description: ""
+url: http://localhost:5000/api/v1/pois/by-code/POI_CHANHDIEN_01?lang=vi
+method: GET
+queryParams:
+  lang: vi
+order: 2000
