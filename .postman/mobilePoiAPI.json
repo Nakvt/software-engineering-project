@@ -1,0 +1,46 @@
+{
+	"info": {
+		"name": "Mobile POI API Collection",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "GET POI List",
+			"request": {
+				"method": "GET",
+				"url": "http://localhost:5000/api/v1/pois?lang=vi&accent=neutral"
+			}
+		},
+		{
+			"name": "GET POI Detail by QR Code",
+			"request": {
+				"method": "GET",
+				"url": "http://localhost:5000/api/v1/pois/by-code/POI_CHANHDIEN_01?lang=vi"
+			}
+		},
+		{
+			"name": "POST Ping Geofence",
+			"request": {
+				"method": "POST",
+				"header": [{"key": "Content-Type", "value": "application/json"}],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"sessionId\": \"a73985d2-f67a-42c2-8419-58b9f36fba7c\",\n  \"latitude\": 16.099120,\n  \"longitude\": 108.277450,\n  \"lang\": \"vi\"\n}"
+				},
+				"url": "http://localhost:5000/api/v1/tracking/ping"
+			}
+		},
+		{
+			"name": "POST Analytics Listen Event",
+			"request": {
+				"method": "POST",
+				"header": [{"key": "Content-Type", "value": "application/json"}],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"sessionId\": \"a73985d2-f67a-42c2-8419-58b9f36fba7c\",\n  \"poiId\": \"9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d\",\n  \"triggerType\": \"geofence\",\n  \"durationListenedSeconds\": 45,\n  \"completed\": false\n}"
+				},
+				"url": "http://localhost:5000/api/v1/analytics/listen-event"
+			}
+		}
+	]
+}

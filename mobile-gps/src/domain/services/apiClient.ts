@@ -7,7 +7,7 @@ import axios from 'axios';
  * - Hãy dùng địa chỉ IPv4 nội bộ máy tính của bạn (VD: 'http://192.168.1.X:3000') 
  *   hoặc đường link tunnel (ngrok).
  */
-export const BASE_API_URL = 'http://192.168.1.100:3000/api';
+export const BASE_API_URL = 'http://192.168.1.10:5000/api/v1';
 
 export const apiClient = axios.create({
   baseURL: BASE_API_URL,

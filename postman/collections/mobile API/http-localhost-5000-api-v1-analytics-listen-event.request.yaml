@@ -1,0 +1,21 @@
+$kind: http-request
+name: http://localhost:5000/api/v1/analytics/listen-event
+description: ""
+url: http://localhost:5000/api/v1/analytics/listen-event
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \  \"sessionId\": \"a73985d2-f67a-42c2-8419-58b9f36fba7c\",\r
+
+    \  \"poiId\": \"9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d\",\r
+
+    \  \"triggerType\": \"geofence\",\r
+
+    \  \"durationListenedSeconds\": 45,\r
+
+    \  \"completed\": false\r
+
+    }"
+order: 4000
