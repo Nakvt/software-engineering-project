@@ -238,21 +238,66 @@ class MobilePoiService {
   }
 
   /**
-   * 2.4. Ghi nhận nhật ký nghe thuyết minh (Analytics Log)
+   * 2.4. Ghi nhận nhật ký nghe vào bảng play_history
    */
   async recordListenEvent({ sessionId, poiId, triggerType, durationListenedSeconds, completed }) {
-    const query = `
-      INSERT INTO play_history (session_id, poi_id, trigger_type, duration_listened_seconds, completed)
-      VALUES ($1, $2, $3, $4, $5)
+    // Dòng 1: Tra cứu UUID chuẩn của POI trong bảng pois (Chấp nhận cả UUID lẫn Mã Code như 'POI_CHANHDIEN_03')
+    const poiCheck = await pool.query(
+      `SELECT id FROM pois WHERE id::text = $1 OR code = $1 LIMIT 1`,
+      [poiId]
+    );
+
+    // Dòng 2: Nếu POI không tồn tại trong DB, trả về thông báo để Controller bắt lỗi 404
+    if (poiCheck.rows.length === 0) {
+      console.warn(`⚠️ [Analytics] Không tìm thấy POI khớp với ID/Code: ${poiId}`);
+      return {
+        success: false,
+        message: `Không tìm thấy điểm tham quan với ID/Code: ${poiId}`,
+      };
+    }
+
+    const realPoiId = poiCheck.rows[0].id;
+
+    // Dòng 3: Kiểm tra định dạng UUID cho Session ID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const safeSessionId = uuidRegex.test(sessionId) 
+      ? sessionId 
+      : '00000000-0000-0000-0000-000000000000';
+
+    // Dòng 4: Đảm bảo SessionID tồn tại trong bảng user_sessions (Tránh rớt khóa ngoại FK session_id)
+    const sessionCheck = await pool.query(
+      `SELECT session_id FROM user_sessions WHERE session_id = $1`,
+      [safeSessionId]
+    );
+
+    if (sessionCheck.rows.length === 0) {
+      await pool.query(
+        `INSERT INTO user_sessions (session_id, device_type, is_online, last_active_at) 
+         VALUES ($1, 'mobile', TRUE, CURRENT_TIMESTAMP)`,
+        [safeSessionId]
+      );
+    }
+
+    // Dòng 5: Thực hiện lệnh INSERT an toàn vào bảng play_history
+    const insertQuery = `
+      INSERT INTO play_history (session_id, poi_id, trigger_type, duration_listened_seconds, completed, played_at)
+      VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
     `;
-    await pool.query(query, [
-      sessionId,
-      poiId,
+
+    await pool.query(insertQuery, [
+      safeSessionId,
+      realPoiId,
       triggerType,
-      durationListenedSeconds || 0,
-      completed || false,
+      durationListenedSeconds,
+      completed,
     ]);
+
+    console.log(`📊 [Analytics Logged] Session: ${safeSessionId} | POI: ${realPoiId} | Duration: ${durationListenedSeconds}s`);
+
+    return {
+      success: true,
+      message: 'Ghi nhận thành công',
+    };
   }
 }
-
 module.exports = new MobilePoiService();

@@ -161,23 +161,40 @@ class MobilePoiController {
         completed = false,
       } = req.body;
 
-      if (!sessionId || !poiId || !['geofence', 'qr_code', 'manual'].includes(triggerType)) {
+      // 1. Kiểm tra tham số bắt buộc tối thiểu
+      if (!sessionId || !poiId) {
         return res.status(400).json({
           success: false,
           data: null,
-          error: 'Dữ liệu sự kiện nghe không hợp lệ (triggerType phải là geofence, qr_code, hoặc manual)',
+          error: 'Thiếu thông tin bắt buộc: sessionId hoặc poiId',
           timestamp: new Date().toISOString(),
         });
       }
 
-      await mobilePoiService.recordListenEvent({
+      // 2. Chuẩn hóa triggerType (Chỉ chấp nhận geofence, qr_code, manual - Fallback về 'geofence')
+      const allowedTriggers = ['geofence', 'qr_code', 'manual'];
+      const safeTriggerType = allowedTriggers.includes(triggerType) ? triggerType : 'geofence';
+
+      // 3. Gọi Service xử lý ghi nhận
+      const result = await mobilePoiService.recordListenEvent({
         sessionId,
         poiId,
-        triggerType,
+        triggerType: safeTriggerType,
         durationListenedSeconds: Number(durationListenedSeconds) || 0,
         completed: Boolean(completed),
       });
 
+      // 4. Nếu Service báo không tìm thấy POI -> Trả về 404 Not Found rõ ràng thay vì rớt lỗi 500
+      if (!result.success) {
+        return res.status(404).json({
+          success: false,
+          data: null,
+          error: result.message,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      // 5. Trả về thành công
       return res.status(200).json({
         success: true,
         data: { message: 'Đã ghi nhận nhật ký nghe thành công' },
@@ -195,5 +212,4 @@ class MobilePoiController {
     }
   }
 }
-
 module.exports = new MobilePoiController();
