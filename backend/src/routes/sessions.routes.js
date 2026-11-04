@@ -67,4 +67,34 @@ router.post('/:sessionId/heartbeat', async (req, res) => {
   }
 });
 
+router.post('/:sessionId/offline', async (req, res) => {
+  const { sessionId } = req.params;
+  if (!UUID_PATTERN.test(sessionId)) {
+    return sendResponse(res, 400, null, 'sessionId must be a valid UUID');
+  }
+
+  try {
+    // 💡 GIẢI THÍCH LOGIC:
+    // Tìm chính xác record theo sessionId và UPDATE thuộc tính is_online = FALSE
+    const result = await pool.query(
+      `UPDATE user_sessions
+       SET is_online = FALSE, last_active_at = NOW()
+       WHERE session_id = $1
+       RETURNING session_id, is_online`,
+      [sessionId],
+    );
+
+    if (result.rows.length === 0) {
+      return sendResponse(res, 404, null, 'Session not found');
+    }
+
+    return sendResponse(res, 200, {
+      sessionId: result.rows[0].session_id,
+      isOnline: result.rows[0].is_online,
+    });
+  } catch (error) {
+    console.error('❌ Lỗi khi cập nhật Session Offline:', error);
+    return sendResponse(res, 500, null, 'Internal server error');
+  }
+});
 module.exports = router;

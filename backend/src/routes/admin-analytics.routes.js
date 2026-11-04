@@ -68,7 +68,7 @@ router.get('/dashboard', async (req, res) => {
   }
 });
 
-const ONLINE_WINDOW_MINUTES = 5;
+// const ONLINE_WINDOW_MINUTES = 5;
 
 // Counts sessions (not unique users): a session is online if it was active in the last window.
 router.get('/online-sessions', async (req, res) => {
@@ -77,18 +77,21 @@ router.get('/online-sessions', async (req, res) => {
   }
 
   try {
+    // 💡 GIẢI THÍCH LOGIC:
+    // Đếm đúng các record có is_online = TRUE.
     const result = await pool.query(
       `SELECT COUNT(*)::int AS online_sessions, NOW() AS as_of
        FROM user_sessions
-       WHERE last_active_at >= NOW() - ($1 * INTERVAL '1 minute')`,
-      [ONLINE_WINDOW_MINUTES],
+       WHERE is_online = TRUE`,
     );
+
     return sendResponse(res, 200, {
-      onlineSessions: Number(result.rows[0].online_sessions),
-      windowMinutes: ONLINE_WINDOW_MINUTES,
+      onlineSessions: Number(result.rows[0].online_sessions) || 0,
+      windowMinutes: 3,
       asOf: result.rows[0].as_of,
     });
-  } catch {
+  } catch (error) {
+    console.error('❌ Lỗi API online-sessions:', error);
     return sendResponse(res, 500, null, 'Internal server error');
   }
 });

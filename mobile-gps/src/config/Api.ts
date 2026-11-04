@@ -1,2 +1,2 @@
 // Cấu hình URL cơ sở của Backend (Thay đổi theo IP máy Server/Staging thực tế)
-export const API_BASE_URL = 'http://172.16.159.197:5000/api/v1'; // Hoặc domain backend demo
+export const API_BASE_URL = 'http://10.134.222.197:5000/api/v1'; // Hoặc domain backend demo
