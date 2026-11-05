@@ -68,7 +68,7 @@ router.get('/dashboard', async (req, res) => {
   }
 });
 
-const ONLINE_WINDOW_MINUTES = 5; // 💡 Sửa từ 3 thành 5 để khớp 100% với expected của Unit Test
+const ONLINE_WINDOW_MINUTES = 5;
 
 // Counts sessions (not unique users): a session is online if it was active in the last window.
 router.get('/online-sessions', async (req, res) => {

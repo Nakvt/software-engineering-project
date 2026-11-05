@@ -70,6 +70,10 @@ function mapPoi(row, content) {
   };
 }
 
+/**
+ * 4.1a. Tạo mới POI kèm Content ban đầu
+ * POST /api/v1/admin/pois
+ */
 router.post('/', async (req, res) => {
   const { body } = req;
   const content = body && body.content;
@@ -105,8 +109,12 @@ router.post('/', async (req, res) => {
   let client;
 
   try {
+    // 💡 GIẢI THÍCH LOGIC TRANSACTION:
+    // Dùng Database Transaction (BEGIN -> COMMIT/ROLLBACK) để đảm bảo khi tạo POI
+    // thì bảng `pois` và `poi_contents` cùng được ghi đồng thời. Nếu 1 trong 2 gặp lỗi sẽ tự ROLLBACK hoàn toàn.
     client = await pool.connect();
     await client.query('BEGIN');
+
     const result = await client.query(
       `INSERT INTO pois (
         code, name_default, latitude, longitude, radius, priority, cooldown_seconds, image_url
@@ -148,7 +156,7 @@ router.post('/', async (req, res) => {
       try {
         await client.query('ROLLBACK');
       } catch {
-        // The transaction connection may already be unusable.
+        // Transaction client may already be closed
       }
     }
     if (error.code === '23505') {
@@ -162,6 +170,10 @@ router.post('/', async (req, res) => {
   }
 });
 
+/**
+ * 4.1b. Cập nhật vị trí và bán kính POI
+ * PUT /api/v1/admin/pois/:id
+ */
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
   const { body } = req;
@@ -199,6 +211,10 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+/**
+ * 4.1c. Cập nhật Kịch bản TTS / Audio thuyết minh theo ngôn ngữ & giọng đọc
+ * POST /api/v1/admin/pois/:id/contents
+ */
 router.post('/:id/contents', async (req, res) => {
   const { id } = req.params;
   const { body } = req;
@@ -224,6 +240,10 @@ router.post('/:id/contents', async (req, res) => {
   ];
 
   try {
+    // 💡 GIẢI THÍCH LOGIC UPSERT:
+    // 1. Lọt qua truy vấn kiểm tra sự tồn tại của POI
+    // 2. Sử dụng ON CONFLICT (poi_id, language_code, accent) DO UPDATE
+    //    để tự động chèn mới nếu chưa có bài dịch, hoặc cập nhật đè thông tin nếu đã tồn tại bài dịch cho ngôn ngữ đó.
     const existing = await pool.query(
       `SELECT p.id, pc.id AS content_id
        FROM pois p

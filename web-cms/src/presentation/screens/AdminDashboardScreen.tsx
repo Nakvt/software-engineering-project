@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { analyticsApi, MOCK_SESSION_ERROR } from '../../data/api/analyticsApi';
+import { poiApi } from '../../data/api/poiApi';
 
 const ONLINE_SESSIONS_REFRESH_MS = 30_000;
 
@@ -26,6 +27,20 @@ interface LanguageOption {
   name: string;
   flag: string;
   speechLang: string;
+}
+
+interface PoiItem {
+  id: string;
+  code?: string;
+  name: string;
+  location: { lat: number; lng: number };
+  radius: number;
+  priority?: number;
+  audio?: {
+    audioUrl?: string;
+    ttsScript?: string;
+    duration?: number;
+  };
 }
 
 const LANGUAGES: LanguageOption[] = [
@@ -120,242 +135,13 @@ const ADMIN_TRANSLATIONS: Record<string, Record<string, string>> = {
     poiCodeLabel: 'POI Code',
     activeStatus: 'Active',
     draftStatus: 'Draft'
-  },
-  zh: {
-    siteTitle: '旅游内容管理系统 - 灵应寺',
-    navPoi: 'POI 与内容管理',
-    navTour: '旅游路线与二维码管理',
-    navAnalytics: '互动与空间热力图',
-    logout: '退出系统',
-    cmsHeader: 'CMS 地点中心与多语言讲解管理',
-    addPoiTitle: '添加新 POI 地点',
-    poiNamePlaceholder: 'POI 地点名称...',
-    poiImgPlaceholder: '图片链接...',
-    latPlaceholder: '纬度...',
-    lngPlaceholder: '经度...',
-    radiusPlaceholder: '地理围栏半径 (米)...',
-    priorityPlaceholder: '优先级...',
-    scriptPlaceholder: '示例文本讲解...',
-    savePoiBtn: '+ 保存新地点',
-    poiListTitle: '现有 POI 列表',
-    tourHeader: '旅游路线与 POI 分类管理',
-    createTourTitle: '创建新旅游路线',
-    tourNamePlaceholder: '输入路线名称...',
-    createTourBtn: '初始化路线',
-    tourListTitle: '当前路线列表',
-    analyticsHeader: '互动与空间热力图',
-    activeDevices: '在线会话数',
-    totalStreams: '总收听次数 (匿名)',
-    avgDuration: '平均收听时长',
-    topPoi: '最热门 POI',
-    heatmapTitle: '空间热力图',
-    heatmapDesc: '直观显示热点以及每个 POI 的名称。',
-    close: '关闭',
-    qrTitle: '地点二维码',
-    qrSub: '打开手机App直接扫描',
-    preview: '收听',
-    stop: '停止',
-    coordsLabel: '坐标',
-    poiCountLabel: 'POI 数量',
-    poiPointsSuffix: '个地点',
-    minutesUnit: '分钟',
-    poiCodeLabel: 'POI 代码',
-    activeStatus: '活跃',
-    draftStatus: '草稿'
-  },
-  ja: {
-    siteTitle: 'ツーリズム CMS - リンウン寺',
-    navPoi: 'POI & コンテンツ管理',
-    navTour: 'ツアー & QRコード管理',
-    navAnalytics: 'インタラクション & ヒートマップ',
-    logout: 'システムからログアウト',
-    cmsHeader: 'CMS ロケーションセンター & 多言語音声ガイド',
-    addPoiTitle: '新規 POI 場所の追加',
-    poiNamePlaceholder: 'POI名...',
-    poiImgPlaceholder: '画像URL...',
-    latPlaceholder: '緯度...',
-    lngPlaceholder: '経度...',
-    radiusPlaceholder: 'ジオフェンス半径 (m)...',
-    priorityPlaceholder: '優先度...',
-    scriptPlaceholder: '音声ガイドスクリプト...',
-    savePoiBtn: '+ 新規場所を保存',
-    poiListTitle: '既存の POI リスト',
-    tourHeader: 'ツアー & POI カテゴリ管理',
-    createTourTitle: '新規ツアー作成',
-    tourNamePlaceholder: 'ツアー名を入力...',
-    createTourBtn: 'ツアーを作成',
-    tourListTitle: '現在のツアーリスト',
-    analyticsHeader: 'インタラクション & スペシャルヒートマップ',
-    activeDevices: 'オンラインセッション数',
-    totalStreams: '総ストリーミング数 (匿名)',
-    avgDuration: '平均リスニング時間',
-    topPoi: '最も聴かれた POI',
-    heatmapTitle: 'スペシャルヒートマップ',
-    heatmapDesc: '各 POI の名前と一緒にホットスポットを視覚化します。',
-    close: '閉じる',
-    qrTitle: '場所のQRコード',
-    qrSub: 'モバイルアプリを開いて直接スキャン',
-    preview: '聴く',
-    stop: '停止',
-    coordsLabel: '座標',
-    poiCountLabel: 'POI数',
-    poiPointsSuffix: '箇所',
-    minutesUnit: '分',
-    poiCodeLabel: 'POIコード',
-    activeStatus: 'アクティブ',
-    draftStatus: '下書き'
-  },
-  ko: {
-    siteTitle: '관광 CMS - 린응 사원',
-    navPoi: 'POI 및 콘텐츠 관리',
-    navTour: '투어 및 QR 코드 관리',
-    navAnalytics: '상호 작용 및 히트맵',
-    logout: '시스템 로그아웃',
-    cmsHeader: 'CMS 위치 센터 및 다국어 해설 관리',
-    addPoiTitle: '새 POI 위치 추가',
-    poiNamePlaceholder: 'POI 위치 이름...',
-    poiImgPlaceholder: '이미지 링크...',
-    latPlaceholder: '위도...',
-    lngPlaceholder: '경도...',
-    radiusPlaceholder: '지오펜스 반경 (m)...',
-    priorityPlaceholder: '우선순위...',
-    scriptPlaceholder: '해설 대본 샘플...',
-    savePoiBtn: '+ 새 위치 저장',
-    poiListTitle: '기존 POI 목록',
-    tourHeader: '투어 및 POI 카테고리 관리',
-    createTourTitle: '새 투어 생성',
-    tourNamePlaceholder: '투어 이름 입력...',
-    createTourBtn: '투어 초기화',
-    tourListTitle: '현재 투어 목록',
-    analyticsHeader: '상호 작용 및 공간 히트맵',
-    activeDevices: '온라인 세션 수',
-    totalStreams: '총 스트림 (익명)',
-    avgDuration: '평균 청취 시간',
-    topPoi: '가장 많이 청취된 POI',
-    heatmapTitle: '공간 히트맵',
-    heatmapDesc: '각 POI의 이름과 함께 핫스팟을 시각화합니다.',
-    close: '닫기',
-    qrTitle: '위치 QR 코드',
-    qrSub: '모바일 앱을 켜고 직접 스캔하세요',
-    preview: '듣기',
-    stop: '중지',
-    coordsLabel: '좌표',
-    poiCountLabel: 'POI 수',
-    poiPointsSuffix: '개',
-    minutesUnit: '분',
-    poiCodeLabel: 'POI 코드',
-    activeStatus: '활성',
-    draftStatus: '초안'
-  }
-};
-
-const MULTI_LANG_NAMES: Record<string, Record<string, string>> = {
-  'P-01': {
-    vi: 'Cổng Tam Quan',
-    en: 'Tam Quan Gate',
-    zh: '三关门',
-    ja: '三門 (タムクアン門)',
-    ko: '삼관문'
-  },
-  'P-02': {
-    vi: 'Tòa chính điện',
-    en: 'Main Hall',
-    zh: '正殿',
-    ja: '本殿',
-    ko: '대웅전'
-  },
-  'P-03': {
-    vi: 'Tượng Phật Quan Âm',
-    en: 'Lady Buddha Statue',
-    zh: '观音佛像',
-    ja: '観音菩薩像',
-    ko: '해수관음상'
-  },
-  'P-04': {
-    vi: 'Tháp Xá Lợi',
-    en: 'Sarira Tower',
-    zh: '舍利塔',
-    ja: '舎利塔',
-    ko: '사리탑'
-  },
-  'P-05': {
-    vi: 'Vườn Lâm Tỳ Ni',
-    en: 'Lumbini Garden',
-    zh: '蓝毗尼园',
-    ja: 'ルンビニ園',
-    ko: '룸비니 정원'
   }
 };
 
 const MULTI_LANG_TOURS: Record<string, Record<string, string>> = {
-  'T-01': {
-    vi: 'Tour Di Sản Bãi Bụt',
-    en: 'Bai But Heritage Tour',
-    zh: '拜佛遗产之旅',
-    ja: 'バイブット遺産ツアー',
-    ko: '바이붓 유산 투어'
-  },
-  'T-02': {
-    vi: 'Tour Khám Phá Tâm Linh',
-    en: 'Spiritual Discovery Tour',
-    zh: '心灵探索之旅',
-    ja: 'スピリチュアル発見ツアー',
-    ko: '영성 탐방 투어'
-  }
+  'T-01': { vi: 'Tour Di Sản Bãi Bụt', en: 'Bai But Heritage Tour' },
+  'T-02': { vi: 'Tour Khám Phá Tâm Linh', en: 'Spiritual Discovery Tour' }
 };
-
-const MULTI_LANG_SCRIPTS: Record<string, Record<string, string>> = {
-  'P-01': {
-    vi: 'Cổng Tam Quan là cánh cổng dẫn lối vào khuôn viên chùa Linh Ứng Bãi Bụt. Cổng được thiết kế theo lối kiến trúc Việt cổ, mái ngói lưu ly cong vút hai đầu.',
-    en: 'The Tam Quan Gate is the gateway leading into the grounds of Linh Ung Bai But Pagoda. The gate is designed in traditional Vietnamese architecture.',
-    zh: '三关门是通往灵应寺拜佛园区的入口，采用传统越南建筑风格，两端飞檐翘角。',
-    ja: '三門（タムクアン門）は、リンウン寺の境内への入り口であり、ベトナムの伝統的な建築様式で造られています。',
-    ko: '삼관문은 링응사 바이붓 사원 내부로 들어가는 입구입니다. 이 문은 베트남 전통 건축 양식으로 지어졌습니다.'
-  },
-  'P-02': {
-    vi: 'Chính điện được lợp bằng mái ngói uốn cong có hình rồng, bao quanh là các trụ cột to vững chắc thờ các pho tượng lớn.',
-    en: 'The Main Hall features curved tiled roofs with dragon motifs, surrounded by sturdy pillars.',
-    zh: '正殿采用龙形翘角屋顶，四周环绕着坚固的柱子。',
-    ja: '本殿は竜の形をした反り屋根を持ち、頑丈な柱に囲まれています。',
-    ko: '본전은 용 모양의 곡선 기와지붕으로 지어졌습니다.'
-  },
-  'P-03': {
-    vi: 'Tượng Phật Quan Thế Âm có độ cao 67m, đường kính tòa sen 35m, là tượng Phật cao nhất khu vực Đông Nam Á.',
-    en: 'The Lady Buddha statue is 67 meters tall, recognized as the tallest Avalokiteshvara statue in Southeast Asia.',
-    zh: '观世音菩萨像高67米，是东南亚最高的观音菩萨像。',
-    ja: '高さ67メートルの観音菩薩像は、東南アジアで最も高い観音像です。',
-    ko: '67m 높이의 관세음보살상은 동남아시아에서 가장 높습니다.'
-  },
-  'P-04': {
-    vi: 'Tháp Xá Lợi tọa lạc ở phía bên trái khu chánh điện, gồm 9 tầng đại diện cho 9 bậc tu hành trong Phật giáo.',
-    en: 'The Sarira Tower, located on the left side of the main hall, consists of 9 floors representing 9 stages.',
-    zh: '舍利塔位于正殿左侧，共9层，代表佛教的9个修行阶梯。',
-    ja: '舎利塔は本殿の左側に位置し、仏教の9つの修行階層を表す9階建てです。',
-    ko: '사리탑은 본전 왼쪽에 위치하며 9층으로 이루어져 있습니다.'
-  },
-  'P-05': {
-    vi: 'Công trình vườn Lâm Tỳ Ni nằm phía trước giảng đường, mô phỏng thánh tích thượng uyển kinh thành Ca Tỳ La Vệ.',
-    en: 'The Lumbini Garden located in front of the lecture hall simulates the sacred garden of Kapilavastu.',
-    zh: '蓝毗尼园位于讲堂前方，模拟释迦牟尼诞生地的圣迹。',
-    ja: 'ルンビニ園は講堂の前に位置し、仏陀誕生の聖地を模したものです。',
-    ko: '룸비니 정원은 붓다의 탄생지를 재현한 성스러운 정원입니다.'
-  }
-};
-
-interface PoiItem {
-  id: string;
-  latitude: number;
-  longitude: number;
-  radius: number;
-}
-
-const INITIAL_POIS: PoiItem[] = [
-  { id: 'P-01', latitude: 16.1001, longitude: 108.2778, radius: 30 },
-  { id: 'P-02', latitude: 16.1005, longitude: 108.2781, radius: 50 },
-  { id: 'P-03', latitude: 16.1012, longitude: 108.279, radius: 60 },
-  { id: 'P-04', latitude: 16.1008, longitude: 108.2775, radius: 40 },
-  { id: 'P-05', latitude: 16.1002, longitude: 108.2770, radius: 35 }
-];
 
 export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLogout }) => {
   const [currentLang, setCurrentLang] = useState('vi');
@@ -371,6 +157,33 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
   const [onlineSessionsLoading, setOnlineSessionsLoading] = useState<boolean>(true);
   const [onlineSessionsError, setOnlineSessionsError] = useState<string | null>(null);
 
+  const [poiList, setPoiList] = useState<PoiItem[]>([]);
+  const [poiListLoading, setPoiListLoading] = useState<boolean>(true);
+  const [submittingPoi, setSubmittingPoi] = useState<boolean>(false);
+
+  // 💡 Tải POI từ CSDL chuẩn React Effect (Xử lý dứt điểm set-state-in-effect)
+  useEffect(() => {
+    let isMounted = true;
+    poiApi.getPois()
+      .then((data) => {
+        if (isMounted) {
+          setPoiList(data || []);
+          setPoiListLoading(false);
+        }
+      })
+      .catch((err: unknown) => {
+        console.error('Không thể lấy danh sách POI từ Backend:', err);
+        if (isMounted) {
+          setPoiListLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Real-time Analytics Effect
   useEffect(() => {
     if (activeTab !== 'analytics') return;
 
@@ -407,27 +220,15 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
     localStorage.setItem('tourist_total_streams', totalStreams.toString());
   }, [totalStreams]);
 
-  const [poiList, setPoiList] =   useState<PoiItem[]>(INITIAL_POIS);
-
-    const getDefaultScript = (lang: string) =>
-      MULTI_LANG_SCRIPTS['P-01'][lang] || MULTI_LANG_SCRIPTS['P-01']['vi'];
-
-    const [newPoi, setNewPoi] = useState({
-      name: '',
-      image: '',
-      latitude: '',
-      longitude: '',
-      radius: '',
-      priority: '',
-      script: getDefaultScript(currentLang),
-    });
-
-    // Đặt lại kịch bản mặc định khi đổi ngôn ngữ (điều chỉnh state ngay trong lúc render, không dùng effect).
-    const [scriptLang, setScriptLang] = useState(currentLang);
-    if (scriptLang !== currentLang) {
-      setScriptLang(currentLang);
-      setNewPoi(prev => ({ ...prev, script: getDefaultScript(currentLang) }));
-    }
+  const [newPoi, setNewPoi] = useState({
+    name: '',
+    image: '',
+    latitude: '',
+    longitude: '',
+    radius: '30',
+    priority: '10',
+    script: 'Tượng Quan Thế Âm tại Chùa Linh Ứng Bãi Bụt cao 67m...',
+  });
 
   const [tourList, setTourList] = useState([
     { id: 'T-01', poiCount: 5, isRawActive: true },
@@ -437,6 +238,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
+  // Render Canvas Spatial Heatmap
   useEffect(() => {
     if (activeTab === 'analytics') {
       const canvas = canvasRef.current;
@@ -496,47 +298,60 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
     }
   }, [activeTab, poiList]);
 
-  const handleAddPoi = () => {
-    if (!newPoi.name) {
-      alert('Vui lòng nhập tên địa điểm POI!');
+  // 💡 Xử lý lưu POI (Thay any bằng unknown)
+  const handleAddPoi = async () => {
+    if (!newPoi.name || !newPoi.latitude || !newPoi.longitude) {
+      alert('Vui lòng nhập Tên địa điểm, Vĩ độ và Kinh độ!');
       return;
     }
-    const newId = `P-0${poiList.length + 1}`;
-    const createdPoi = {
-      id: newId,
-      latitude: Number(newPoi.latitude) || 16.1000,
-      longitude: Number(newPoi.longitude) || 108.2700,
-      radius: Number(newPoi.radius) || 30,
-    };
-    if (!MULTI_LANG_NAMES[newId]) {
-      MULTI_LANG_NAMES[newId] = {
-        vi: newPoi.name,
-        en: newPoi.name,
-        zh: newPoi.name,
-        ja: newPoi.name,
-        ko: newPoi.name
+
+    try {
+      setSubmittingPoi(true);
+
+      const payload = {
+        code: `POI_${Date.now()}`,
+        name: newPoi.name.trim(),
+        location: {
+          lat: Number(newPoi.latitude),
+          lng: Number(newPoi.longitude),
+        },
+        radius: Number(newPoi.radius) || 20,
+        priority: Number(newPoi.priority) || 1,
+        cooldownSeconds: 300,
+        imageUrl: newPoi.image.trim() || undefined,
+        content: {
+          languageCode: currentLang,
+          accent: 'north',
+          title: newPoi.name.trim(),
+          description: newPoi.script.trim(),
+          ttsScript: newPoi.script.trim(),
+        },
       };
+
+      await poiApi.createPoi(payload);
+      alert('Thêm địa điểm POI thành công vào CSDL!');
+
+      setNewPoi({
+        name: '',
+        image: '',
+        latitude: '',
+        longitude: '',
+        radius: '30',
+        priority: '10',
+        script: '',
+      });
+
+      const updatedPois = await poiApi.getPois();
+      setPoiList(updatedPois || []);
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error)) {
+        alert(error.response?.data?.error || 'Lỗi không thể lưu POI vào CSDL');
+      } else {
+        alert('Lỗi không thể lưu POI vào CSDL');
+      }
+    } finally {
+      setSubmittingPoi(false);
     }
-    if (!MULTI_LANG_SCRIPTS[newId]) {
-      MULTI_LANG_SCRIPTS[newId] = {
-        vi: newPoi.script,
-        en: `Description for ${newPoi.name}`,
-        zh: `${newPoi.name} 简介`,
-        ja: `${newPoi.name} の説明`,
-        ko: `${newPoi.name} 설명`
-      };
-    }
-    setPoiList([createdPoi, ...poiList]);
-    setNewPoi({
-      name: '',
-      image: '',
-      latitude: '',
-      longitude: '',
-      radius: '',
-      priority: '',
-      script: MULTI_LANG_SCRIPTS['P-01'][currentLang] || MULTI_LANG_SCRIPTS['P-01']['vi'],
-    });
-    alert('Thêm địa điểm POI thành công!');
   };
 
   const handleAddTour = () => {
@@ -545,13 +360,6 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
       return;
     }
     const newId = `T-0${tourList.length + 1}`;
-    MULTI_LANG_TOURS[newId] = {
-      vi: newTourName,
-      en: newTourName,
-      zh: newTourName,
-      ja: newTourName,
-      ko: newTourName
-    };
     const createdTour = {
       id: newId,
       poiCount: poiList.length,
@@ -582,7 +390,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
       return nextCount;
     });
 
-    const currentScript = MULTI_LANG_SCRIPTS[item.id]?.[currentLang] || MULTI_LANG_SCRIPTS['P-01']['vi'];
+    const currentScript = item.audio?.ttsScript || item.name;
     const utterance = new SpeechSynthesisUtterance(currentScript);
     utterance.lang = selectedLangObj.speechLang;
 
@@ -749,36 +557,39 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
                 <button
                   type="button"
                   onClick={handleAddPoi}
-                  style={{ backgroundColor: '#2563EB', color: '#FFFFFF', padding: '10px 16px', borderRadius: '8px', border: 'none', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}
+                  disabled={submittingPoi}
+                  style={{ backgroundColor: submittingPoi ? '#94A3B8' : '#2563EB', color: '#FFFFFF', padding: '10px 16px', borderRadius: '8px', border: 'none', fontWeight: 700, fontSize: '13px', cursor: submittingPoi ? 'not-allowed' : 'pointer' }}
                 >
-                  {t.savePoiBtn}
+                  {submittingPoi ? 'Đang lưu...' : t.savePoiBtn}
                 </button>
               </div>
 
               {/* List of POIs */}
               <div style={{ backgroundColor: '#FFFFFF', borderRadius: '12px', border: '1px solid #E2E8F0', padding: '20px' }}>
-                <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#1E293B', marginTop: 0, marginBottom: '16px' }}>{t.poiListTitle} ({poiList.length})</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {poiList.map((item) => {
-                    const currentName = MULTI_LANG_NAMES[item.id]?.[currentLang] || MULTI_LANG_NAMES['P-01']['vi'];
-                    const currentScript = MULTI_LANG_SCRIPTS[item.id]?.[currentLang] || MULTI_LANG_SCRIPTS['P-01']['vi'];
-
-                    return (
+                <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#1E293B', marginTop: 0, marginBottom: '16px' }}>
+                  {t.poiListTitle} ({poiListLoading ? '...' : poiList.length})
+                </h3>
+                
+                {poiListLoading ? (
+                  <div style={{ textAlign: 'center', padding: '20px', color: '#64748B', fontSize: '13px' }}>Đang tải dữ liệu POI từ CSDL...</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {poiList.map((item) => (
                       <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px', border: '1px solid #E2E8F0', borderRadius: '10px', backgroundColor: '#F8FAFC' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxWidth: '280px' }}>
-                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#2563EB' }}>{item.id}</span>
-                          <span style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>{currentName}</span>
-                          <span style={{ fontSize: '12px', color: '#64748B' }}>{t.coordsLabel}: {item.latitude}, {item.longitude}</span>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#2563EB' }}>{item.code || item.id}</span>
+                          <span style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>{item.name}</span>
+                          <span style={{ fontSize: '12px', color: '#64748B' }}>{t.coordsLabel}: {item.location?.lat}, {item.location?.lng}</span>
                         </div>
 
                         <div style={{ fontSize: '12px', color: '#475569', flex: 1, margin: '0 20px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {currentScript}
+                          {item.audio?.ttsScript || 'Chưa có kịch bản thuyết minh'}
                         </div>
 
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button
                             type="button"
-                            onClick={() => setSelectedPoiForQR({ ...item, name: currentName })}
+                            onClick={() => setSelectedPoiForQR({ ...item, name: item.name })}
                             style={{ padding: '6px 10px', backgroundColor: '#EFF6FF', color: '#2563EB', border: '1px solid #BFDBFE', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
                           >
                             📱 QR
@@ -792,9 +603,9 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
                           </button>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -872,7 +683,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
                 </div>
                 <div style={{ backgroundColor: '#FFFFFF', padding: '20px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
                   <div style={{ fontSize: '12px', color: '#64748B', fontWeight: 600, marginBottom: '8px' }}>{t.topPoi}</div>
-                  <div style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', marginTop: '6px' }}>{MULTI_LANG_NAMES['P-01']?.[currentLang] || 'Cổng Tam Quan'}</div>
+                  <div style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', marginTop: '6px' }}>{poiList[0]?.name || 'Cổng Tam Quan'}</div>
                 </div>
               </div>
 
@@ -887,7 +698,6 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
                     const stepX = 850 / (poiList.length + 1);
                     const x = stepX * (index + 1);
                     const y = 130 + Math.sin(index * 1.2) * 50;
-                    const name = MULTI_LANG_NAMES[poi.id]?.[currentLang] || MULTI_LANG_NAMES['P-01']['vi'];
 
                     return (
                       <div
@@ -910,7 +720,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
                         }}
                       >
                         <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#EF4444', display: 'inline-block' }}></span>
-                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#0F172A' }}>{poi.id}: {name}</span>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#0F172A' }}>{poi.code || poi.id}: {poi.name}</span>
                       </div>
                     );
                   })}
@@ -931,12 +741,12 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
             <div style={{ padding: '12px', backgroundColor: '#FFFFFF', borderRadius: '12px', border: '1px solid #E2E8F0', marginBottom: '16px' }}>
               <img
                 style={{ width: '180px', height: '180px', display: 'block' }}
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=poi://${selectedPoiForQR.id}`}
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=poi://${selectedPoiForQR.code || selectedPoiForQR.id}`}
                 alt="QR Code"
               />
             </div>
 
-            <div style={{ fontSize: '12px', color: '#334155', marginBottom: '4px' }}>{t.poiCodeLabel}: <span style={{ fontWeight: 700, color: '#2563EB' }}>{selectedPoiForQR.id}</span></div>
+            <div style={{ fontSize: '12px', color: '#334155', marginBottom: '4px' }}>{t.poiCodeLabel}: <span style={{ fontWeight: 700, color: '#2563EB' }}>{selectedPoiForQR.code || selectedPoiForQR.id}</span></div>
             <div style={{ fontSize: '11px', color: '#94A3B8', textAlign: 'center', marginBottom: '20px' }}>{t.qrSub}</div>
 
             <button
