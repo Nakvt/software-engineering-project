@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { MOCK_TOURS } from '../../domain/models/mockTour';
 import { TopBar } from '../components/TopBar';
 import { MiniPlayer } from '../components/MiniPlayer';
 import { AudioLib } from '../../libs/audio';
+import { poiService } from '../../domain/services/poiService';
 
 const MOCK_TITLE_MAP: Record<SupportedLanguage, string> = {
   vi: 'Mô phỏng vị trí GPS:',
@@ -37,24 +38,61 @@ function getTranslationName(
 
 export const MapScreen: React.FC<any> = ({ navigation, route }) => {
   const [selectedLang, setSelectedLang] = useState<SupportedLanguage>('vi');
+  const [currentPois, setCurrentPois] = useState<POI[]>([]);
   const { activePOI, hasPermission, simulateLocation, pois } = useGeofencing([], selectedLang);
   const webViewRef = useRef<WebView>(null);
 
-  // Hàm phát/đọc lại thuyết minh cho POI hiện tại
+  // Re-fetch POIs từ Backend mỗi khi người dùng thay đổi ngôn ngữ trên TopBar
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchPoisByLanguage = async () => {
+      try {
+        console.log(`🔄 [MapScreen] Đang tải lại POIs cho ngôn ngữ: ${selectedLang}`);
+        const data = await poiService.getAllPOIs(selectedLang);
+        if (isMounted && Array.isArray(data)) {
+          setCurrentPois(data);
+        }
+      } catch (error) {
+        console.error('❌ [MapScreen Error] Lỗi tải POIs theo ngôn ngữ:', error);
+      }
+    };
+
+    fetchPoisByLanguage();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedLang]);
+
+  useEffect(() => {
+    if (pois && pois.length > 0 && currentPois.length === 0) {
+      setCurrentPois(pois);
+    }
+  }, [pois]);
+
+  // Phát lại âm thanh đúng ngôn ngữ đã chọn
   const handleReplayAudio = () => {
     if (!activePOI) return;
 
-    const ttsScript =
-      typeof activePOI.audio?.ttsScript === 'string'
-        ? activePOI.audio.ttsScript
-        : activePOI.audio?.ttsScript?.[selectedLang] || activePOI.audio?.ttsScript?.vi;
+    // 🟢 THÊM DÒNG NÀY: Tìm POI tương ứng trong mảng displayPois (đã được re-fetch theo selectedLang)
+    const currentLangPoi = displayPois.find((p) => p.id === activePOI.id) || activePOI;
 
-    if (ttsScript) {
+    let ttsScript: string | undefined = undefined;
+
+    // Lấy ttsScript từ POI mới nhất của ngôn ngữ hiện tại
+    if (typeof currentLangPoi.audio?.ttsScript === 'string' && currentLangPoi.audio.ttsScript.trim() !== '') {
+      ttsScript = currentLangPoi.audio.ttsScript;
+    } else if (typeof currentLangPoi.audio?.ttsScript === 'object' && currentLangPoi.audio?.ttsScript !== null) {
+      ttsScript = (currentLangPoi.audio.ttsScript as any)[selectedLang] || currentLangPoi.audio.ttsScript.vi;
+    }
+
+    if (ttsScript && ttsScript.trim() !== '') {
       const locale = LANGUAGE_LOCALE_MAP[selectedLang] || 'vi-VN';
-      console.log(`🔄 [Replay TTS ${selectedLang}]: ${ttsScript}`);
+      console.log(`🔊 [Replay TTS ${selectedLang}]: ${ttsScript}`);
       AudioLib.playTTS(ttsScript, locale);
-    } else if (activePOI.audio?.audioUrl) {
-      AudioLib.playAudio(activePOI.audio.audioUrl);
+    } else if (currentLangPoi.audio?.audioUrl) {
+      AudioLib.playAudio(currentLangPoi.audio.audioUrl);
     }
   };
 
@@ -64,17 +102,20 @@ export const MapScreen: React.FC<any> = ({ navigation, route }) => {
     [selectedTourId]
   );
 
+  const displayPois = currentPois.length > 0 ? currentPois : pois;
+
   const tourPOIs = useMemo(() => {
     if (!activeTour) return [];
     return activeTour.poiIds
-      .map((id: string) => pois.find((poi: POI) => poi.id === id))
+      .map((id: string) => displayPois.find((poi: POI) => poi.id === id))
       .filter((poi): poi is POI => poi !== undefined);
-  }, [activeTour, pois]);
+  }, [activeTour, displayPois]);
 
   const htmlContent = useMemo(() => {
-    const formattedPois = pois.map((poi) => ({
+    const safePois = Array.isArray(displayPois) ? displayPois : [];
+    const formattedPois = safePois.map((poi) => ({
       ...poi,
-      displayName: getTranslationName(poi.name, selectedLang),
+      displayName: typeof poi.name === 'string' ? poi.name : getTranslationName(poi.name, selectedLang),
     }));
 
     const poisJson = JSON.stringify(formattedPois);
@@ -105,15 +146,17 @@ export const MapScreen: React.FC<any> = ({ navigation, route }) => {
           var tourPois = ${tourPoisJson};
 
           pois.forEach(function(poi) {
-            var marker = L.marker([poi.location.lat, poi.location.lng]).addTo(map);
-            marker.bindPopup("<b>" + poi.displayName + "</b><br>Bán kính: " + poi.radius + "m");
+            if (poi.location && poi.location.lat && poi.location.lng) {
+              var marker = L.marker([poi.location.lat, poi.location.lng]).addTo(map);
+              marker.bindPopup("<b>" + (poi.displayName || poi.name || '') + "</b><br>Bán kính: " + (poi.radius || 30) + "m");
 
-            L.circle([poi.location.lat, poi.location.lng], {
-              color: '#007AFF',
-              fillColor: '#007AFF',
-              fillOpacity: 0.15,
-              radius: poi.radius
-            }).addTo(map);
+              L.circle([poi.location.lat, poi.location.lng], {
+                color: '#007AFF',
+                fillColor: '#007AFF',
+                fillOpacity: 0.15,
+                radius: poi.radius || 30
+              }).addTo(map);
+            }
           });
 
           if (tourPois.length > 1) {
@@ -125,7 +168,7 @@ export const MapScreen: React.FC<any> = ({ navigation, route }) => {
       </body>
       </html>
     `;
-  }, [pois, tourPOIs, selectedLang]);
+  }, [displayPois, tourPOIs, selectedLang]);
 
   if (!hasPermission) {
     return (
@@ -178,8 +221,8 @@ export const MapScreen: React.FC<any> = ({ navigation, route }) => {
       <View style={styles.mockControls}>
         <Text style={styles.mockLabel}>{MOCK_TITLE_MAP[selectedLang]}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.mockButtonsRow}>
-          {pois.map((poi) => {
-            const displayName = getTranslationName(poi.name, selectedLang);
+          {displayPois.map((poi) => {
+            const displayName = typeof poi.name === 'string' ? poi.name : getTranslationName(poi.name, selectedLang);
             return (
               <TouchableOpacity
                 key={poi.id}

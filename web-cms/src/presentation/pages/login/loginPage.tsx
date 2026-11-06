@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/useAuth';
+import { authApi } from '../../../data/api/authApi';
+import { authStorage } from '../../../data/storage/authStorage';
 import styles from './loginPage.module.css';
 
 interface LoginPageProps {
@@ -29,36 +32,35 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
     try {
       setIsSubmitting(true);
+      authStorage.clearSession();
 
-      // --- GIẢ LẬP KẾT NỐI API (MOCK DATA) ---
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      if (username === 'admin' && password === '123456') {
-        const mockAuthData = {
-          accessToken: 'mock_access_token_123456',
-          refreshToken: 'mock_refresh_token_abcdef',
-          expiresIn: 900,
-          user: {
-            id: 'admin-01',
-            username: 'admin',
-            fullName: 'Quản Trị Viên (Mock)',
-            role: 'super_admin' as const,
-          },
-        };
-
-        login(mockAuthData);
-
-        if (onLoginSuccess) {
-          onLoginSuccess();
-        }
-
-        navigate('/dashboard', { replace: true });
-      } else {
-        setErrorMessage('Tên đăng nhập hoặc mật khẩu không đúng (Thử: admin / 123456)');
+      const body = await authApi.login({ username: username.trim(), password });
+      if (!body.success || !body.data?.accessToken || !body.data?.refreshToken) {
+        setErrorMessage('Phản hồi đăng nhập không hợp lệ từ máy chủ.');
+        return;
       }
-      // ----------------------------------------
-    } catch {
-      setErrorMessage('Đã xảy ra lỗi không xác định.');
+
+      login(body.data);
+
+      if (onLoginSuccess) {
+        onLoginSuccess();
+      }
+
+      navigate('/dashboard', { replace: true });
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        if (!error.response) {
+          setErrorMessage('Không kết nối được máy chủ backend.');
+        } else if (error.response.status === 401) {
+          setErrorMessage('Tên đăng nhập hoặc mật khẩu không đúng.');
+        } else if (error.response.status === 400) {
+          setErrorMessage('Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.');
+        } else {
+          setErrorMessage('Máy chủ gặp lỗi. Vui lòng thử lại sau.');
+        }
+      } else {
+        setErrorMessage('Đã xảy ra lỗi không xác định.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -92,7 +94,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               id="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="e.g., admin"
+              placeholder="Tên đăng nhập"
               disabled={isSubmitting}
               required
             />

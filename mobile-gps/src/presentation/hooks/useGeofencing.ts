@@ -1,28 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Location from 'expo-location';
 import { Coordinates } from '../../domain/models/Location';
-import { POI, MultiLangString } from '../../domain/models/POI';
-import { GeofenceService } from '../../domain/services/GeofenceService';
+import { POI } from '../../domain/models/POI';
 import { poiService } from '../../domain/services/poiService';
 import { AudioQueueService } from '../../domain/services/AudioQueueService';
+import { SessionService } from '../../domain/services/sessionService'; // Giả định service lấy sessionId hiện tại
 import { LocationLib } from '../../libs/location';
-import { AudioLib } from '../../libs/audio';
 
-// Định nghĩa danh sách các mã ngôn ngữ hỗ trợ
 export type SupportedLanguage = 'vi' | 'en' | 'ja' | 'zh' | 'ko';
-
-/**
- * Hàm hỗ trợ lấy chuỗi văn bản phù hợp theo ngôn ngữ được chọn
- */
-function getTranslation(
-  value?: string | MultiLangString,
-  lang: SupportedLanguage = 'vi'
-): string {
-  if (!value) return '';
-  if (typeof value === 'string') return value;
-  // Nếu là đối tượng MultiLangString, ưu tiên lấy ngôn ngữ được chọn, fallback về tiếng Việt
-  return value[lang] || value.vi || '';
-}
 
 export function useGeofencing(
   initialPois: POI[] = [],
@@ -32,13 +17,15 @@ export function useGeofencing(
   const [currentLocation, setCurrentLocation] = useState<Coordinates | null>(null);
   const [activePOI, setActivePOI] = useState<POI | null>(null);
   const [hasPermission, setHasPermission] = useState<boolean>(false);
-  const subscriptionRef = useRef<Location.LocationSubscription | null>(null);
 
-  // 1. Tải danh sách POIs qua Service (API hoặc Fallback Mock)
+  const subscriptionRef = useRef<Location.LocationSubscription | null>(null);
+  const isPingingRef = useRef<boolean>(false); // Cờ chặn gọi API dồn dập
+
+  // 1. Tải danh sách POIs qua Service
   useEffect(() => {
     let isMounted = true;
     const fetchPOIs = async () => {
-      const data = await poiService.getAllPOIs();
+      const data = await poiService.getAllPOIs(selectedLanguage);
       if (isMounted) {
         setPois(data);
       }
@@ -47,31 +34,50 @@ export function useGeofencing(
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [selectedLanguage]);
 
-  // 2. Đánh giá vị trí và đẩy vào AudioQueueService thay vì phát trực tiếp
+  // 2. GỬI TRACKING PING LÊN BACKEND (API THỨ 3) & TỰ ĐỘNG BẬT TTS
   const checkAndTriggerPOI = useCallback(
-    (coords: Coordinates) => {
-      console.log('Đang kiểm tra tọa độ:', coords);
-      const evaluation = GeofenceService.evaluateGeofence(coords, pois);
+    async (coords: Coordinates) => {
+      if (isPingingRef.current) return;
 
-      if (evaluation.shouldTrigger && evaluation.poi) {
-        const poi = evaluation.poi;
-        const poiName = getTranslation(poi.name, selectedLanguage);
-        console.log(`>>> KÍCH HOẠT POI: ${poiName} (Ngôn ngữ: ${selectedLanguage})`);
-        
-        setActivePOI(poi);
+      try {
+        isPingingRef.current = true;
+        console.log('📍 [Tracking Ping] Đang gửi tọa độ lên Backend:', coords);
 
-        // Đẩy POI vào Hàng chờ thuyết minh để xử lý Cooldown & Priority
-        AudioQueueService.enqueue(poi, selectedLanguage);
-      } else {
-        console.log('Không có POI nào trong bán kính hoặc đang trong Cooldown');
+        // Lấy Session ID từ Service hoặc dùng ID dự phòng
+        const sessionId = SessionService.getSessionId() || 'a73985d2-f67a-42c2-8419-58b9f36fba7c';
+
+        // Gọi API thứ 3: POST /api/v1/tracking/ping
+        const response = await poiService.sendTrackingPing(
+          sessionId,
+          coords.lat,
+          coords.lng,
+          selectedLanguage
+        );
+
+        // Logic xử lý khi Backend trả về Trigger = true
+        if (response.shouldTrigger && response.poi) {
+          const triggeredPoi = response.poi;
+          console.log(`>>> 🟢 [KÍCH HOẠT GEOFENCE API 3]: ${triggeredPoi.name} (Ngôn ngữ: ${selectedLanguage})`);
+
+          setActivePOI(triggeredPoi);
+
+          // 🚀 TỰ ĐỘNG ĐẨY VÀO HÀNG CHỜ VÀ PHÁT TTS
+          AudioQueueService.enqueue(triggeredPoi, selectedLanguage);
+        } else {
+          console.log('⚪ [Tracking Ping] Không chạm bán kính POI hoặc đang trong Cooldown DB.');
+        }
+      } catch (error) {
+        console.error('❌ [Tracking Ping Error]:', error);
+      } finally {
+        isPingingRef.current = false;
       }
     },
-    [pois, selectedLanguage]
+    [selectedLanguage]
   );
 
-  // 3. Hàm mô phỏng vị trí khi bấm các nút test trên giao diện
+  // 3. Hàm mô phỏng vị trí GPS cho nút test
   const simulateLocation = useCallback(
     (coords: Coordinates) => {
       setCurrentLocation(coords);
@@ -80,7 +86,7 @@ export function useGeofencing(
     [checkAndTriggerPOI]
   );
 
-  // 4. Khởi tạo theo dõi vị trí GPS
+  // 4. Khởi tạo và lắng nghe GPS thời gian thực
   useEffect(() => {
     let isMounted = true;
 
@@ -105,8 +111,8 @@ export function useGeofencing(
       const sub = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.High,
-          timeInterval: 2000,
-          distanceInterval: 2,
+          timeInterval: 3000,
+          distanceInterval: 3,
         },
         (loc) => {
           if (!isMounted) return;
@@ -129,7 +135,6 @@ export function useGeofencing(
       if (subscriptionRef.current) {
         subscriptionRef.current.remove();
       }
-      // Dọn sạch hàng chờ âm thanh khi unmount
       AudioQueueService.clearQueue();
     };
   }, [checkAndTriggerPOI]);

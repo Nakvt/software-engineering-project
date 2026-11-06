@@ -1,0 +1,109 @@
+erDiagram
+    categories {
+        uuid id PK
+        string name
+        text description
+        timestamptz created_at
+    }
+
+    tours {
+        uuid id PK
+        string name
+        text description
+        int estimated_duration_minutes
+        decimal distance_km
+        string thumbnail_url
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    user_sessions {
+        uuid session_id PK
+        string device_type
+        boolean is_online
+        timestamptz last_active_at
+        timestamptz started_at
+    }
+
+    pois {
+        uuid id PK
+        string code
+        string name_default
+        decimal latitude
+        decimal longitude
+        int radius
+        int priority
+        int cooldown_seconds
+        uuid category_id FK
+        string image_url
+        string map_external_url
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    tour_pois {
+        uuid tour_id PK, FK
+        uuid poi_id PK, FK
+        int sequence_order
+    }
+
+    poi_contents {
+        uuid id PK
+        uuid poi_id FK
+        string language_code
+        string accent
+        string title
+        text description
+        text tts_script
+        string audio_url
+        int audio_duration_seconds
+    }
+
+    tracking_logs {
+        uuid id PK
+        uuid session_id FK
+        decimal latitude
+        decimal longitude
+        timestamptz recorded_at
+    }
+
+    play_history {
+        uuid id PK
+        uuid session_id FK
+        uuid poi_id FK
+        string language_code
+        string accent
+        string trigger_type
+        int duration_listened_seconds
+        boolean completed
+        timestamptz played_at
+    }
+
+    admins {
+        uuid id PK
+        string username
+        string email
+        string password_hash
+        string full_name
+        string role
+        boolean is_active
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    admin_refresh_tokens {
+        uuid id PK
+        uuid admin_id FK
+        string token
+        timestamptz expires_at
+        timestamptz created_at
+    }
+
+    categories ||--o{ pois : "1-n"
+    tours ||--|{ tour_pois : "1-n"
+    pois ||--|{ tour_pois : "1-n"
+    pois ||--o{ poi_contents : "1-n"
+    user_sessions ||--o{ tracking_logs : "1-n"
+    user_sessions ||--o{ play_history : "1-n"
+    pois ||--o{ play_history : "1-n"
+    admins ||--o{ admin_refresh_tokens : "1-n"
