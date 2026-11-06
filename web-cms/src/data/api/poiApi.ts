@@ -32,4 +32,8 @@ export const poiApi = {
     const res = await apiClient.post('/admin/pois', payload);
     return res.data.success ? res.data.data : res.data;
   },
+
+  deletePoi: async (id: string): Promise<void> => {
+    await apiClient.delete(`/admin/pois/${id}`);
+  },
 };

@@ -26,7 +26,7 @@ app.use('/api/v1', mobileRoutes); // 2. Mount public Mobile routes (/api/v1/pois
 app.use('/api/v1/admin/pois', authMiddleware, requireAdmin, adminPoiRoutes);
 app.use('/api/v1/admin/analytics', authMiddleware, requireAdmin, adminAnalyticsRoutes);
 
-// Global Error Handler Middleware
+app.use('/api/v1/admin/tours', require('./routes/tour.route'));// Global Error Handler Middleware
 app.use((error, _request, response, _next) => {
   void _next;
   console.error(error);

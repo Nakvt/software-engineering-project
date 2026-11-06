@@ -11,17 +11,17 @@ const apiClient = axios.create({
   },
 });
 
-// Biến cờ (Flag) & Hàng đợi (Queue) xử lý vấn đề Race Condition khi refresh token
+// Flag & Queue chống Race Condition khi refresh token đồng thời
 let isRefreshing = false;
 let failedQueue: Array<{
   resolve: (token: string) => void;
-  reject: (error: unknown) => void; // 💡 Đã sửa: dùng `unknown` thay cho `any`
+  reject: (error: unknown) => void;
 }> = [];
 
 /**
- * Hàm xử lý giải phóng các request đang bị hoãn trong hàng đợi
+ * Giải phóng các request bị hoãn trong hàng đợi
  */
-const processQueue = (error: unknown, token: string | null = null) => { // 💡 Đã sửa: dùng `unknown`
+const processQueue = (error: unknown, token: string | null = null): void => {
   failedQueue.forEach((promise) => {
     if (error) {
       promise.reject(error);
@@ -33,19 +33,29 @@ const processQueue = (error: unknown, token: string | null = null) => { // 💡 
   failedQueue = [];
 };
 
-// Request Interceptor: Tự động đính kèm Access Token vào mọi Request gửi đi
+// Helper gắn Authorization header an toàn cho cả Axios v0.x và v1.x
+const setAuthHeader = (config: InternalAxiosRequestConfig, token: string): void => {
+  if (!config.headers) return;
+  if (typeof config.headers.set === 'function') {
+    config.headers.set('Authorization', `Bearer ${token}`);
+  } else {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+};
+
+// Request Interceptor: Tự động đính kèm Access Token vào mọi Request
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = authStorage.getAccessToken();
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (token) {
+      setAuthHeader(config, token);
     }
     return config;
   },
   (error: AxiosError) => Promise.reject(error)
 );
 
-// Response Interceptor: Xử lý tập trung các lỗi HTTP trả về
+// Response Interceptor: Xử lý tự động refresh token khi gặp 401 Unauthorized
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => response,
   async (error: AxiosError) => {
@@ -54,15 +64,15 @@ apiClient.interceptors.response.use(
     const requestUrl = originalRequest?.url || '';
     const isAuthRoute = requestUrl.includes('/auth/login') || requestUrl.includes('/auth/refresh-token');
 
+    // Xử lý khi nhận lỗi 401 và không phải các API Authentication gốc
     if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthRoute) {
+      // Nếu đang trong tiến trình refresh token từ request khác -> Xếp vào hàng đợi
       if (isRefreshing) {
-        return new Promise((resolve, reject) => {
+        return new Promise<string>((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
           .then((newToken) => {
-            if (originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${newToken}`;
-            }
+            setAuthHeader(originalRequest, newToken);
             return apiClient(originalRequest);
           })
           .catch((err: unknown) => Promise.reject(err));
@@ -80,13 +90,10 @@ apiClient.interceptors.response.use(
           });
 
           if (res.data.success && res.data.data?.accessToken) {
-            const newAccessToken = res.data.data.accessToken;
+            const newAccessToken: string = res.data.data.accessToken;
 
             authStorage.setAccessToken(newAccessToken);
-
-            if (originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-            }
+            setAuthHeader(originalRequest, newAccessToken);
 
             processQueue(null, newAccessToken);
 
@@ -97,7 +104,7 @@ apiClient.interceptors.response.use(
         } catch (refreshError) {
           processQueue(refreshError, null);
           authStorage.clearSession();
-          
+
           if (window.location.pathname !== '/login') {
             window.location.href = '/login';
           }
@@ -106,10 +113,13 @@ apiClient.interceptors.response.use(
           isRefreshing = false;
         }
       } else {
+        // Trường hợp không có refreshToken
+        isRefreshing = false;
         authStorage.clearSession();
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';
         }
+        return Promise.reject(error);
       }
     }
 
