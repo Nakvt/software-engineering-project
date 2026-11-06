@@ -42,6 +42,11 @@ jobs:
         run: npm run lint
 
       - name: Run tests
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://neondb_owner:npg_VybRIn0Wgwu4@ep-lingering-bar-b5w4ulgq-pooler.c-7.us-east-2.aws.neon.tech/neondb?sslmode=require
+          JWT_ACCESS_SECRET: super_secret_access_key_mobile_poi_2026
+          JWT_REFRESH_SECRET: super_secret_refresh_key_mobile_poi_2026
         run: npm test
 
       - name: Build Docker image
