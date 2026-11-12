@@ -5,6 +5,7 @@ const adminPoiRoutes = require('./routes/admin-poi.routes');
 const adminAnalyticsRoutes = require('./routes/admin-analytics.routes');
 const sessionsRoutes = require('./routes/sessions.routes');
 const mobileRoutes = require('./routes/mobileRoutes');
+const adminTourRoutes = require('./routes/tour.route');
 const authMiddleware = require('./middlewares/authMiddleware');
 const requireAdmin = require('./middlewares/requireAdmin');
 
@@ -17,16 +18,15 @@ app.get('/health', (_request, response) => {
   response.json({ status: 'ok' });
 });
 
-// --- Public Routes ---
+// --- Public Routes (Dành cho Mobile & Auth) ---
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/sessions', sessionsRoutes);
 app.use('/api/v1', mobileRoutes);
 
-// --- Protected Admin Routes ---
-app.use('/api/v1/admin', authMiddleware, requireAdmin);
-app.use('/api/v1/admin/pois', adminPoiRoutes);
-app.use('/api/v1/admin/analytics', adminAnalyticsRoutes);
-app.use('/api/v1/admin/tours', require('./routes/tour.route'));
+// --- Protected Admin Routes (Cần Auth & Quyền Admin) ---
+app.use('/api/v1/admin/pois', authMiddleware, requireAdmin, adminPoiRoutes);
+app.use('/api/v1/admin/analytics', authMiddleware, requireAdmin, adminAnalyticsRoutes);
+app.use('/api/v1/admin/tours', authMiddleware, requireAdmin, adminTourRoutes);
 
 // Global Error Handler Middleware
 // eslint-disable-next-line no-unused-vars
