@@ -3,8 +3,10 @@ import axios from 'axios';
 import { analyticsApi, MOCK_SESSION_ERROR } from '../../data/api/analyticsApi';
 import type { HeatmapPoint, DashboardStats } from '../../data/api/analyticsApi';
 import { poiApi } from '../../data/api/poiApi';
+import type { UpdatePoiPayload } from '../../data/api/poiApi';
 import { tourApi } from '../../data/api/tourApi';
 import type { TourItem } from '../../data/api/tourApi';
+import { EditPoiModal } from '../components/editPOIModal';
 
 const ONLINE_SESSIONS_REFRESH_MS = 30_000;
 
@@ -39,12 +41,15 @@ interface PoiItem {
   location: { lat: number; lng: number };
   radius: number;
   priority?: number;
+  imageUrl?: string;
   audio?: {
     audioUrl?: string;
     ttsScript?: string;
     duration?: number;
   };
 }
+
+type EditablePoi = PoiItem & Pick<UpdatePoiPayload, 'description' | 'latitude' | 'longitude' | 'audio_url' | 'image_url'>;
 
 const LANGUAGES: LanguageOption[] = [
   { code: 'vi', name: 'Tiếng Việt', flag: 'https://flagcdn.com/w40/vn.png', speechLang: 'vi-VN' },
@@ -106,6 +111,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
   const [activeTab, setActiveTab] = useState<'cms' | 'tours' | 'analytics'>('cms');
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
   const [selectedPoiForQR, setSelectedPoiForQR] = useState<(PoiItem & { name: string }) | null>(null);
+  const [selectedPoi, setSelectedPoi] = useState<EditablePoi | null>(null);
 
   const t = ADMIN_TRANSLATIONS[currentLang] || ADMIN_TRANSLATIONS['vi'];
   const selectedLangObj = LANGUAGES.find(l => l.code === currentLang) || LANGUAGES[0];
@@ -123,6 +129,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
   const [newTourDesc, setNewTourDesc] = useState('');
   const [selectedPoiIds, setSelectedPoiIds] = useState<string[]>([]);
   const [submittingTour, setSubmittingTour] = useState<boolean>(false);
+  const [deletingTourId, setDeletingTourId] = useState<string | null>(null);
 
   // State hỗ trợ Modal chỉnh sửa POI cho Tour có sẵn
   const [editingTour, setEditingTour] = useState<TourItem | null>(null);
@@ -137,22 +144,99 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
   const [stats, setStats] = useState<DashboardStats>({ totalStreams: 0, avgDurationMinutes: 0, topPoiName: '—' });
 
   // Tải danh sách POI từ CSDL
-  const fetchPois = () => {
-    poiApi.getPois()
-      .then((data) => {
-        setPoiList(data || []);
-        setPoiListLoading(false);
-      })
-      .catch((err: unknown) => {
-        console.error('Lỗi lấy POI:', err);
-        setPoiListLoading(false);
-      });
+  const fetchPois = async (): Promise<boolean> => {
+    try {
+      const data = await poiApi.getPois();
+      setPoiList(Array.isArray(data) ? data : []);
+      return true;
+    } catch (error: unknown) {
+      console.error('Lỗi lấy POI:', error);
+      return false;
+    } finally {
+      setPoiListLoading(false);
+    }
   };
 
-  useEffect(() => {
-    fetchPois();
-  }, []);
+  const handleOpenEditModal = (poi: PoiItem) => {
+    setSelectedPoi({
+      ...poi,
+      description: poi.audio?.ttsScript || '',
+      latitude: poi.location?.lat ?? 0,
+      longitude: poi.location?.lng ?? 0,
+      audio_url: poi.audio?.audioUrl || '',
+      image_url: poi.imageUrl || '',
+    });
+  };
 
+const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => {
+    const targetId = updatedData.id || selectedPoi?.id;
+
+    if (!targetId) {
+      alert('Không tìm thấy ID của POI đang chọn. Vui lòng tải lại danh sách và thử lại.');
+      return;
+    }
+
+    // 🟢 Lấy trực tiếp các trường từ updatedData, không cần destructure bóc tách id thừa
+    const latitude = Number(updatedData.latitude ?? updatedData.location?.lat ?? 0);
+    const longitude = Number(updatedData.longitude ?? updatedData.location?.lng ?? 0);
+    const radius = Number(updatedData.radius_meters ?? updatedData.radius ?? 30);
+    const name_default = updatedData.name_default || updatedData.name || '';
+    const description_default = updatedData.description_default || updatedData.description || '';
+
+    const normalizedPayload: UpdatePoiPayload = {
+      ...updatedData,
+      name_default,
+      name: name_default,
+      description_default,
+      description: description_default,
+      latitude,
+      longitude,
+      radius,
+      radius_meters: radius,
+      location: { lat: latitude, lng: longitude },
+    };
+
+    console.log('🚀 [CMS SENDING PAYLOAD]:', { id: targetId, normalizedPayload });
+
+    try {
+      await poiApi.updatePoi(targetId, normalizedPayload);
+
+      alert('Cập nhật địa điểm POI thành công!');
+      setSelectedPoi(null);
+
+      const reloaded = await fetchPois();
+      if (!reloaded) {
+        alert('Đã cập nhật POI nhưng không tải lại được danh sách. Vui lòng tải lại trang.');
+      }
+    } catch (error: unknown) {
+      console.error('❌ Lỗi khi lưu POI:', error);
+      if (axios.isAxiosError(error)) {
+        alert(error.response?.data?.error || error.response?.data?.message || 'Lỗi không thể cập nhật POI');
+      } else {
+        alert('Lỗi không thể cập nhật POI');
+      }
+    }
+  };
+  
+  useEffect(() => {
+  let isMounted = true;
+
+  const loadData = async () => {
+    try {
+      await fetchPois();
+    } catch (err) {
+      if (isMounted) {
+        console.error("Lỗi khi tải danh sách POI:", err);
+      }
+    }
+  };
+
+  void loadData();
+
+  return () => {
+    isMounted = false;
+  };
+}, []);
   // Tải danh sách Tour từ CSDL Neon
   useEffect(() => {
     if (activeTab !== 'tours') return;
@@ -444,6 +528,25 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
     }
   };
 
+  const handleDeleteTour = async (tourId: string, tourName: string) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa Tour "${tourName}" không?`)) return;
+
+    try {
+      setDeletingTourId(tourId);
+      await tourApi.deleteTour(tourId);
+      alert('Xóa Tour thành công!');
+      setTourList((prevTours) => prevTours.filter((tour) => tour.id !== tourId));
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error)) {
+        alert(error.response?.data?.error || 'Không thể xóa Tour. Vui lòng thử lại sau.');
+      } else {
+        alert('Không thể xóa Tour. Vui lòng thử lại sau.');
+      }
+    } finally {
+      setDeletingTourId(null);
+    }
+  };
+
   const handleLogoutAction = () => {
     if (onLogout) {
       onLogout();
@@ -664,6 +767,13 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button
                             type="button"
+                            onClick={() => handleOpenEditModal(item)}
+                            style={{ padding: '6px 12px', backgroundColor: '#ffc107', color: '#000000', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                          >
+                            ✏️ Sửa
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => setSelectedPoiForQR({ ...item, name: item.name })}
                             style={{ padding: '6px 10px', backgroundColor: '#EFF6FF', color: '#2563EB', border: '1px solid #BFDBFE', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
                           >
@@ -777,6 +887,14 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
                             style={{ padding: '6px 12px', backgroundColor: '#EFF6FF', color: '#2563EB', border: '1px solid #BFDBFE', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
                           >
                             ⚙️ Gán POIs vào Tour
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTour(tour.id, tour.name)}
+                            disabled={deletingTourId === tour.id}
+                            style={{ padding: '6px 12px', backgroundColor: deletingTourId === tour.id ? '#FECACA' : '#DC3545', color: '#FFFFFF', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: deletingTourId === tour.id ? 'not-allowed' : 'pointer' }}
+                          >
+                            {deletingTourId === tour.id ? 'Đang xóa...' : '🗑️ Xóa Tour'}
                           </button>
                           <span style={{ padding: '4px 10px', backgroundColor: tour.isActive ? '#DCFCE7' : '#FEF3C7', color: tour.isActive ? '#166534' : '#92400E', borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>
                             {tour.isActive ? t.activeStatus : t.draftStatus}
@@ -916,6 +1034,13 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
           )}
         </div>
       </div>
+
+      <EditPoiModal
+        poi={selectedPoi}
+        isOpen={selectedPoi !== null}
+        onClose={() => setSelectedPoi(null)}
+        onSave={handleSavePoi}
+      />
 
       {/* Modal QR Code */}
       {selectedPoiForQR && (

@@ -3,7 +3,6 @@ const { translate } = require('@vitalets/google-translate-api');
 const pool = require('../config/db');
 
 const router = express.Router();
-// const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Danh sách các ngôn ngữ cần tự động dịch từ bản gốc (Tiếng Việt)
 const TARGET_LANGUAGES = [
@@ -58,7 +57,6 @@ function validateContent(content) {
   );
 }
 
-// 💡 HÀM BỔ TRỢ: Tính thời lượng đọc audio ước tính (TB 1 từ đọc khoảng 0.4 giây)
 function calculateAudioDuration(text) {
   if (!text || typeof text !== 'string') return 60;
   const wordCount = text.trim().split(/\s+/).length;
@@ -87,7 +85,7 @@ function mapPoi(row, content) {
 }
 
 /**
- * 4.1a. Tạo mới POI kèm Content ban đầu & TỰ ĐỘNG DỊCH 4 NGÔN NGỮ (EN, ZH, JA, KO)
+ * 4.1a. Tạo mới POI
  * POST /api/v1/admin/pois
  */
 router.post('/', async (req, res) => {
@@ -136,7 +134,6 @@ router.post('/', async (req, res) => {
     client = await pool.connect();
     await client.query('BEGIN');
 
-    // 1. Chèn POI vào bảng `pois`
     const result = await client.query(
       `INSERT INTO pois (
         code, name_default, latitude, longitude, radius, priority, cooldown_seconds, image_url
@@ -156,7 +153,6 @@ router.post('/', async (req, res) => {
     );
     const poi = result.rows[0];
 
-    // 2. Chèn bản ghi gốc (Tiếng Việt) vào `poi_contents`
     await client.query(
       `INSERT INTO poi_contents (
         poi_id, language_code, accent, title, description, tts_script, audio_url, audio_duration_seconds
@@ -173,7 +169,6 @@ router.post('/', async (req, res) => {
       ],
     );
 
-    // 3. TỰ ĐỘNG DỊCH SANG 4 NGÔN NGỮ (EN, ZH, JA, KO) VÀ LƯU VÀO DB
     for (const target of TARGET_LANGUAGES) {
       try {
         const langCodeInDb = target.dbCode || target.code;
@@ -217,9 +212,7 @@ router.post('/', async (req, res) => {
     if (client) {
       try {
         await client.query('ROLLBACK');
-      } catch {
-        // Transaction client may already be closed
-      }
+      } catch {error}
     }
     if (error.code === '23505') {
       return sendResponse(res, 409, null, 'POI code or initial content already exists');
@@ -233,7 +226,7 @@ router.post('/', async (req, res) => {
 });
 
 /**
- * 💡 BỔ SUNG QUAN TRỌNG: 4.1d. Xóa POI khỏi CSDL Neon
+ * 4.1d. Xóa POI
  * DELETE /api/v1/admin/pois/:id
  */
 router.delete('/:id', async (req, res) => {
@@ -244,11 +237,10 @@ router.delete('/:id', async (req, res) => {
   }
 
   try {
-    // Tìm và xóa POI dựa theo id (UUID) hoặc code (Mã POI)
     const result = await pool.query(
       `DELETE FROM pois 
-       WHERE id::text = $1 OR code = $1 
-       RETURNING id, code`,
+      WHERE id::text = $1 OR code = $1 
+      RETURNING id, code`,
       [id.trim()]
     );
 
@@ -268,119 +260,163 @@ router.delete('/:id', async (req, res) => {
 });
 
 /**
- * 4.1b. Cập nhật vị trí và bán kính POI
+ * 🟢 4.1b. CẬP NHẬT POI (TỐI GIẢN - TRÁNH HANG/TIMEOUT DB)
  * PUT /api/v1/admin/pois/:id
  */
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
   const { body } = req;
-  if (
-    !id ||
-    !isObject(body) ||
-    !isObject(body.location) ||
-    !isCoordinate(body.location.lat, -90, 90) ||
-    !isCoordinate(body.location.lng, -180, 180) ||
-    !isInteger(body.radius, 1)
-  ) {
-    return sendResponse(res, 400, null, 'Invalid POI id, location or radius');
+
+  // Bắt các kiểu key tên và mô tả từ Web CMS
+  const nameVal = (body?.name_default || body?.name || '').trim();
+  const descVal = (body?.description_default || body?.description || '').trim();
+  
+  const location = isObject(body?.location) ? body.location : body;
+  const latVal = Number(location?.lat ?? body?.latitude);
+  const lngVal = Number(location?.lng ?? body?.longitude);
+  const radVal = Number(body?.radius_meters ?? body?.radius ?? 30);
+  const imgVal = body?.image_url || null;
+
+  if (!id || !latVal || !lngVal) {
+    return res.status(400).json({ success: false, message: 'Thiếu thông tin POI' });
   }
 
   try {
-    const result = await pool.query(
+    // 1. Update bảng pois
+    const poiResult = await pool.query(
       `UPDATE pois
-       SET latitude = $1, longitude = $2, radius = $3, updated_at = CURRENT_TIMESTAMP
-       WHERE id::text = $4 OR code = $4
-       RETURNING id, latitude, longitude, radius`,
-      [body.location.lat, body.location.lng, body.radius, id],
+       SET name_default = CASE WHEN $1 != '' THEN $1 ELSE name_default END,
+           latitude = $2,
+           longitude = $3,
+           radius = $4,
+           image_url = COALESCE($5, image_url),
+           updated_at = NOW()
+       WHERE id::text = $6 OR code = $6
+       RETURNING id, code, name_default, latitude, longitude, radius, image_url`,
+      [nameVal, latVal, lngVal, radVal, imgVal, id.trim()]
     );
-    if (result.rows.length === 0) {
-      return sendResponse(res, 404, null, 'POI not found');
+
+    if (poiResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: `Không tìm thấy POI: ${id}` });
     }
 
-    const poi = result.rows[0];
-    return sendResponse(res, 200, {
-      id: poi.id,
-      location: { lat: Number(poi.latitude), lng: Number(poi.longitude) },
-      radius: poi.radius,
+    const updatedPoi = poiResult.rows[0];
+
+    // 2. Update mô tả tiếng Việt trong bảng poi_contents
+    if (descVal !== '') {
+      await pool.query(
+        `UPDATE poi_contents
+         SET title = $1, description = $2, tts_script = $2
+         WHERE poi_id = $3 AND LOWER(language_code) = 'vi'`,
+        [updatedPoi.name_default, descVal, updatedPoi.id]
+      );
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        id: updatedPoi.id,
+        code: updatedPoi.code,
+        name_default: updatedPoi.name_default,
+        description_default: descVal || updatedPoi.name_default,
+        location: { lat: Number(updatedPoi.latitude), lng: Number(updatedPoi.longitude) },
+        radius_meters: updatedPoi.radius,
+        image_url: updatedPoi.image_url,
+      },
     });
-  } catch {
-    return sendResponse(res, 500, null, 'Internal server error');
+  } catch (error) {
+    console.error('❌ Lỗi DB:', error);
+    return res.status(500).json({ success: false, message: error.message });
   }
 });
 
 /**
- * 4.1c. Cập nhật Kịch bản TTS / Audio thuyết minh theo ngôn ngữ & giọng đọc
- * POST /api/v1/admin/pois/:id/contents
+ * 🟢 4.1b. CẬP NHẬT POI VÀ NỘI DUNG THUYẾT MINH
+ * PUT /api/v1/admin/pois/:id
  */
-router.post('/:id/contents', async (req, res) => {
+router.put('/:id', async (req, res) => {
   const { id } = req.params;
   const { body } = req;
-  if (!id || !validateContent(body)) {
-    return sendResponse(res, 400, null, 'Invalid POI id or content');
+
+  // Khai báo đầy đủ các biến để tránh lỗi is not defined
+  const nameVal = (body?.name_default || body?.name || '').trim();
+  const descVal = (body?.description_default || body?.description || '').trim();
+  
+  const location = isObject(body?.location) ? body.location : body;
+  const latVal = Number(location?.lat ?? body?.latitude);
+  const lngVal = Number(location?.lng ?? body?.longitude);
+  const radVal = Number(body?.radius_meters ?? body?.radius ?? 30);
+  const imgVal = body?.image_url || null;
+
+  if (!id || !latVal || !lngVal) {
+    return res.status(400).json({ success: false, message: 'Invalid POI id or location' });
   }
 
-  const languageCode = body.languageCode.trim();
-  const accent = body.accent === undefined ? 'neutral' : body.accent.trim();
-  
-  const ttsText = body.ttsScript || body.description || body.title;
-  const computedDuration = (body.audioDurationSeconds && body.audioDurationSeconds > 0)
-    ? body.audioDurationSeconds
-    : calculateAudioDuration(ttsText);
-  const computedAudioUrl = body.audioUrl || `https://cdn.example.com/audio/${id}_${languageCode}.mp3`;
-
-  const values = [
-    id,
-    languageCode,
-    accent,
-    body.title.trim(),
-    body.description ?? ttsText,
-    body.ttsScript ?? ttsText,
-    computedAudioUrl,
-    computedDuration,
-    body.description !== undefined,
-    body.ttsScript !== undefined,
-    body.audioUrl !== undefined,
-    body.audioDurationSeconds !== undefined,
-  ];
-
+  let client;
   try {
-    const existing = await pool.query(
-      `SELECT p.id, pc.id AS content_id
-       FROM pois p
-       LEFT JOIN poi_contents pc
-         ON pc.poi_id = p.id AND pc.language_code = $2 AND pc.accent = $3
-       WHERE p.id::text = $1 OR p.code = $1`,
-      [id, languageCode, accent],
+    client = await pool.connect();
+    await client.query('BEGIN');
+
+    // 1. Update trực tiếp bảng pois
+    const poiResult = await client.query(
+      `UPDATE pois
+       SET name_default = CASE WHEN $1 != '' THEN $1 ELSE name_default END,
+           latitude = $2,
+           longitude = $3,
+           radius = $4,
+           image_url = COALESCE($5, image_url),
+           updated_at = NOW()
+       WHERE id::text = $6 OR code = $6
+       RETURNING id, code, name_default, latitude, longitude, radius, image_url`,
+      [nameVal, latVal, lngVal, radVal, imgVal, id.trim()]
     );
-    if (existing.rows.length === 0) {
-      return sendResponse(res, 404, null, 'POI not found');
+
+    if (poiResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: `Không tìm thấy POI: ${id}` });
     }
 
-    const targetPoiId = existing.rows[0].id;
-    values[0] = targetPoiId;
+    const updatedPoi = poiResult.rows[0];
 
-    const result = await pool.query(
-      `INSERT INTO poi_contents (
-        poi_id, language_code, accent, title, description, tts_script, audio_url, audio_duration_seconds
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      ON CONFLICT (poi_id, language_code, accent) DO UPDATE SET
-        title = EXCLUDED.title,
-        description = CASE WHEN $9 THEN EXCLUDED.description ELSE poi_contents.description END,
-        tts_script = CASE WHEN $10 THEN EXCLUDED.tts_script ELSE poi_contents.tts_script END,
-        audio_url = CASE WHEN $11 THEN EXCLUDED.audio_url ELSE poi_contents.audio_url END,
-        audio_duration_seconds = CASE WHEN $12 THEN EXCLUDED.audio_duration_seconds
-          ELSE poi_contents.audio_duration_seconds END
-      RETURNING id, poi_id, language_code, accent, title, description,
-        tts_script, audio_url, audio_duration_seconds`,
-      values,
-    );
-    const status = existing.rows[0].content_id === null ? 201 : 200;
-    return sendResponse(res, status, result.rows[0]);
+    // 2. Update nội dung thuyết minh tiếng Việt trong poi_contents
+    if (descVal !== '') {
+      const updateContentRes = await client.query(
+        `UPDATE poi_contents
+         SET title = $1, description = $2, tts_script = $2
+         WHERE poi_id = $3 AND LOWER(language_code) = 'vi'`,
+        [updatedPoi.name_default, descVal, updatedPoi.id]
+      );
+
+      // Nếu chưa từng có bản ghi tiếng Việt thì INSERT
+      if (updateContentRes.rowCount === 0) {
+        await client.query(
+          `INSERT INTO poi_contents (poi_id, language_code, accent, title, description, tts_script)
+           VALUES ($1, 'vi', 'north', $2, $3, $3)`,
+          [updatedPoi.id, updatedPoi.name_default, descVal]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        id: updatedPoi.id,
+        code: updatedPoi.code,
+        name_default: updatedPoi.name_default,
+        description_default: descVal || updatedPoi.name_default,
+        location: { lat: Number(updatedPoi.latitude), lng: Number(updatedPoi.longitude) },
+        radius_meters: updatedPoi.radius,
+        image_url: updatedPoi.image_url,
+      },
+    });
   } catch (error) {
-    if (error.code === '23503') {
-      return sendResponse(res, 404, null, 'POI not found');
-    }
-    return sendResponse(res, 500, null, 'Internal server error');
+    if (client) await client.query('ROLLBACK');
+    console.error('❌ Lỗi DB:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
+  } finally {
+    if (client) client.release();
   }
 });
 

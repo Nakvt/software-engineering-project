@@ -152,4 +152,102 @@ router.put('/:id/pois', async (req, res) => {
   }
 });
 
+// DELETE /api/v1/admin/tours/:id
+router.delete('/:id', async (req, res) => {
+  const { id } = req.params;
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // 1. Xóa các bản ghi liên kết trong bảng tour_pois trước
+    await client.query('DELETE FROM tour_pois WHERE tour_id = $1', [id]);
+
+    // 2. Xóa Tour trong bảng tours
+    const result = await client.query('DELETE FROM tours WHERE id = $1 RETURNING *', [id]);
+
+    if (result.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({
+        success: false,
+        data: null,
+        error: 'Không tìm thấy Tour để xóa',
+      });
+    }
+
+    await client.query('COMMIT');
+    return res.status(200).json({
+      success: true,
+      data: { id },
+      message: 'Xóa Tour thành công',
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Lỗi khi xóa tour:', error);
+    return res.status(500).json({
+      success: false,
+      data: null,
+      error: 'Lỗi hệ thống khi xóa Tour',
+    });
+  } finally {
+    client.release();
+  }
+});
+
+// PUT /api/v1/admin/tours/:id - Cập nhật Tour & Danh sách POI thuộc Tour
+router.put('/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, description, poiIds } = req.body; // poiIds là mảng id POI theo đúng thứ tự [poi1_id, poi2_id, ...]
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // 1. Cập nhật thông tin Tour
+    const tourResult = await client.query(
+      `UPDATE tours SET name = $1, description = $2, updated_at = NOW() WHERE id = $3 RETURNING *`,
+      [name, description, id]
+    );
+
+    if (tourResult.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({
+        success: false,
+        data: null,
+        error: 'Không tìm thấy Tour',
+      });
+    }
+
+    // 2. Nếu có truyền danh sách poiIds, cập nhật lại bảng liên kết tour_pois
+    if (Array.isArray(poiIds)) {
+      // Xóa liên kết cũ
+      await client.query('DELETE FROM tour_pois WHERE tour_id = $1', [id]);
+
+      // Thêm lại liên kết mới với order_index tương ứng
+      for (let i = 0; i < poiIds.length; i++) {
+        await client.query(
+          `INSERT INTO tour_pois (tour_id, poi_id, sequence_order) VALUES ($1, $2, $3)`,
+          [id, poiIds[i], i + 1]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+    return res.status(200).json({
+      success: true,
+      data: tourResult.rows[0],
+      message: 'Cập nhật Tour thành công',
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Lỗi cập nhật Tour:', error);
+    return res.status(500).json({
+      success: false,
+      data: null,
+      error: 'Lỗi hệ thống khi cập nhật Tour',
+    });
+  } finally {
+    client.release();
+  }
+});
 module.exports = router;

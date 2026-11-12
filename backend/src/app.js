@@ -4,7 +4,7 @@ const authRoutes = require('./routes/authRoutes');
 const adminPoiRoutes = require('./routes/admin-poi.routes');
 const adminAnalyticsRoutes = require('./routes/admin-analytics.routes');
 const sessionsRoutes = require('./routes/sessions.routes');
-const mobileRoutes = require('./routes/mobileRoutes'); // 1. Import thêm mobileRoutes
+const mobileRoutes = require('./routes/mobileRoutes');
 const authMiddleware = require('./middlewares/authMiddleware');
 const requireAdmin = require('./middlewares/requireAdmin');
 
@@ -17,23 +17,25 @@ app.get('/health', (_request, response) => {
   response.json({ status: 'ok' });
 });
 
-// --- Public Routes (Dành cho Auth & Mobile App) ---
+// --- Public Routes ---
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/sessions', sessionsRoutes);
-app.use('/api/v1', mobileRoutes); // 2. Mount public Mobile routes (/api/v1/pois, /api/v1/tracking/ping, v.v.)
+app.use('/api/v1', mobileRoutes);
 
-// --- Protected Admin Routes (Dành cho Web CMS) ---
-app.use('/api/v1/admin/pois', authMiddleware, requireAdmin, adminPoiRoutes);
-app.use('/api/v1/admin/analytics', authMiddleware, requireAdmin, adminAnalyticsRoutes);
+// --- Protected Admin Routes ---
+app.use('/api/v1/admin', authMiddleware, requireAdmin);
+app.use('/api/v1/admin/pois', adminPoiRoutes);
+app.use('/api/v1/admin/analytics', adminAnalyticsRoutes);
+app.use('/api/v1/admin/tours', require('./routes/tour.route'));
 
-app.use('/api/v1/admin/tours', require('./routes/tour.route'));// Global Error Handler Middleware
+// Global Error Handler Middleware
+// eslint-disable-next-line no-unused-vars
 app.use((error, _request, response, _next) => {
-  void _next;
-  console.error(error);
+  console.error('❌ GLOBAL SERVER ERROR:', error);
   return response.status(500).json({
     success: false,
     data: null,
-    error: 'Internal server error',
+    error: error.message || 'Internal server error',
     timestamp: new Date().toISOString(),
   });
 });

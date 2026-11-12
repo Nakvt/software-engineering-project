@@ -33,4 +33,24 @@ export const tourApi = {
   updateTourPois: async (tourId: string, poiIds: string[]): Promise<void> => {
     await apiClient.put(`/admin/tours/${tourId}/pois`, { poiIds });
   },
+
+  deleteTour: async (tourId: string): Promise<boolean> => {
+    try {
+      const response = await apiClient.delete(`/admin/tours/${tourId}`);
+      return response.data?.success ?? true;
+    } catch (error) {
+      console.error('Lỗi xóa Tour:', error);
+      throw error;
+    }
+  },
+
+  updateTour: async (id: string, data: { name: string; description: string; poiIds?: string[] }): Promise<boolean> => {
+    try {
+      const response = await apiClient.put(`/admin/tours/${id}`, data);
+      return response.data?.success ?? true;
+    } catch (error) {
+      console.error('Lỗi cập nhật Tour:', error);
+      throw error;
+    }
+  },
 };
