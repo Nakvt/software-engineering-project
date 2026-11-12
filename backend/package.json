@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "node --test --test-force-exit || exit 0",
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
+    "start": "node --dns-result-order=ipv4first src/server.js",
+    "dev": "nodemon --dns-result-order=ipv4first src/server.js",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

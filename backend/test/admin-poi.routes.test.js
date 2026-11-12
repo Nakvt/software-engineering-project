@@ -204,21 +204,45 @@ test('POST /api/v1/admin/pois/:id/contents upserts multilingual content', async 
   assert.equal(result.body.data.language_code, 'vi');
 });
 
-test('PUT /api/v1/admin/pois/:id updates coordinates and radius', async () => {
+test('PUT /api/v1/admin/pois/:id updates POI fields', async () => {
   const result = await request({
     method: 'PUT',
     path: `/api/v1/admin/pois/${poiId}`,
     accessToken: token(),
-    body: { location: { lat: 16.2, lng: 108.3 }, radius: 25 },
+    body: {
+      name: 'Updated POI',
+      description: 'Updated Vietnamese description',
+      location: { lat: 16.2, lng: 108.3 },
+      radius: 25,
+    },
     query: async (sql, values) => {
       assert.match(sql, /UPDATE pois/);
-      assert.deepEqual(values, [16.2, 108.3, 25, poiId]);
-      return { rows: [{ id: poiId, latitude: '16.2', longitude: '108.3', radius: 25 }] };
+      assert.deepEqual(values, [
+        'Updated POI',
+        16.2,
+        108.3,
+        25,
+        null,
+        poiId,
+        'Updated Vietnamese description',
+      ]);
+      return {
+        rows: [{
+          id: poiId,
+          name_default: 'Updated POI',
+          description_default: 'Updated Vietnamese description',
+          latitude: '16.2',
+          longitude: '108.3',
+          radius: 25,
+        }],
+      };
     },
   });
   assert.equal(result.status, 200);
+  assert.equal(result.body.data.name_default, 'Updated POI');
+  assert.equal(result.body.data.description_default, 'Updated Vietnamese description');
   assert.deepEqual(result.body.data.location, { lat: 16.2, lng: 108.3 });
-  assert.equal(result.body.data.radius, 25);
+  assert.equal(result.body.data.radius_meters, 25);
 });
 
 test('admin POI database failures return a generic server error', async () => {

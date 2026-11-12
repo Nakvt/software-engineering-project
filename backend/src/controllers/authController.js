@@ -21,11 +21,20 @@ class AuthController {
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
+      // 1. IN CHI TIẾT NGUYÊN NHÂN SẬP RA TERMINAL
+      console.error('❌ [AUTH LOGIN ERROR]:', error);
+
       const invalidCredentials = error && error.code === 'INVALID_CREDENTIALS';
+      
+      // 2. Trả ra message lỗi cụ thể của error để dễ debug trên UI/DevTools
+      const errorMessage = invalidCredentials 
+        ? 'Mật khẩu hoặc tên đăng nhập không đúng' 
+        : (error.message || 'Internal server error');
+
       return res.status(invalidCredentials ? 401 : 500).json({
         success: false,
         data: null,
-        error: invalidCredentials ? 'Mật khẩu hoặc tên đăng nhập không đúng' : 'Internal server error',
+        error: errorMessage,
         timestamp: new Date().toISOString(),
       });
     }
@@ -42,11 +51,15 @@ class AuthController {
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
+      console.error('❌ [AUTH REFRESH TOKEN ERROR]:', error);
+
       const invalidRefreshToken = error && error.code === 'INVALID_REFRESH_TOKEN';
       return res.status(invalidRefreshToken ? 401 : 500).json({
         success: false,
         data: null,
-        error: invalidRefreshToken ? 'Refresh Token không hợp lệ hoặc đã hết hạn' : 'Internal server error',
+        error: invalidRefreshToken 
+          ? 'Refresh Token không hợp lệ hoặc đã hết hạn' 
+          : (error.message || 'Internal server error'),
         timestamp: new Date().toISOString(),
       });
     }
@@ -62,11 +75,13 @@ class AuthController {
         error: null,
         timestamp: new Date().toISOString(),
       });
-    } catch {
+    } catch (error) {
+      console.error('❌ [AUTH LOGOUT ERROR]:', error);
+
       return res.status(500).json({
         success: false,
         data: null,
-        error: 'Internal server error',
+        error: error.message || 'Internal server error',
         timestamp: new Date().toISOString(),
       });
     }
