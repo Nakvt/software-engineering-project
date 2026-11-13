@@ -7,6 +7,8 @@ import type { UpdatePoiPayload } from '../../data/api/poiApi';
 import { tourApi } from '../../data/api/tourApi';
 import type { TourItem } from '../../data/api/tourApi';
 import { EditPoiModal } from '../components/editPOIModal';
+import { EditTourModal } from '../components/editTourModal';
+import type { FullTourUpdatePayload } from '../components/editTourModal';
 
 const ONLINE_SESSIONS_REFRESH_MS = 30_000;
 
@@ -101,8 +103,8 @@ const ADMIN_TRANSLATIONS: Record<string, Record<string, string>> = {
     minutesUnit: 'phút',
     poiCodeLabel: 'Mã POI',
     activeStatus: 'Hoạt động',
-    draftStatus: 'Bản nháp'
-  }
+    draftStatus: 'Bản nháp',
+  },
 };
 
 export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLogout }) => {
@@ -114,7 +116,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
   const [selectedPoi, setSelectedPoi] = useState<EditablePoi | null>(null);
 
   const t = ADMIN_TRANSLATIONS[currentLang] || ADMIN_TRANSLATIONS['vi'];
-  const selectedLangObj = LANGUAGES.find(l => l.code === currentLang) || LANGUAGES[0];
+  const selectedLangObj = LANGUAGES.find((l) => l.code === currentLang) || LANGUAGES[0];
 
   // 1. POI State
   const [poiList, setPoiList] = useState<PoiItem[]>([]);
@@ -127,14 +129,17 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
   const [tourListLoading, setTourListLoading] = useState<boolean>(true);
   const [newTourName, setNewTourName] = useState('');
   const [newTourDesc, setNewTourDesc] = useState('');
+  const [newTourDuration, setNewTourDuration] = useState('');
+  const [newTourDistance, setNewTourDistance] = useState('');
+  const [newTourThumbnail, setNewTourThumbnail] = useState('');
   const [selectedPoiIds, setSelectedPoiIds] = useState<string[]>([]);
   const [submittingTour, setSubmittingTour] = useState<boolean>(false);
   const [deletingTourId, setDeletingTourId] = useState<string | null>(null);
 
-  // State hỗ trợ Modal chỉnh sửa POI cho Tour có sẵn
+  // State Modal chỉnh sửa toàn bộ Tour
   const [editingTour, setEditingTour] = useState<TourItem | null>(null);
   const [selectedPoiIdsForEdit, setSelectedPoiIdsForEdit] = useState<string[]>([]);
-  const [savingTourPois, setSavingTourPois] = useState<boolean>(false);
+  const [loadingEditTourPois, setLoadingEditTourPois] = useState<boolean>(false);
 
   // 3. Analytics State
   const [onlineSessions, setOnlineSessions] = useState<number | null>(null);
@@ -168,7 +173,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({ onLo
     });
   };
 
-const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => {
+  const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => {
     const targetId = updatedData.id || selectedPoi?.id;
 
     if (!targetId) {
@@ -176,7 +181,6 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
       return;
     }
 
-    // 🟢 Lấy trực tiếp các trường từ updatedData, không cần destructure bóc tách id thừa
     const latitude = Number(updatedData.latitude ?? updatedData.location?.lat ?? 0);
     const longitude = Number(updatedData.longitude ?? updatedData.location?.lng ?? 0);
     const radius = Number(updatedData.radius_meters ?? updatedData.radius ?? 30);
@@ -196,11 +200,8 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
       location: { lat: latitude, lng: longitude },
     };
 
-    console.log('🚀 [CMS SENDING PAYLOAD]:', { id: targetId, normalizedPayload });
-
     try {
       await poiApi.updatePoi(targetId, normalizedPayload);
-
       alert('Cập nhật địa điểm POI thành công!');
       setSelectedPoi(null);
 
@@ -217,31 +218,33 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
       }
     }
   };
-  
+
   useEffect(() => {
-  let isMounted = true;
+    let isMounted = true;
 
-  const loadData = async () => {
-    try {
-      await fetchPois();
-    } catch (err) {
-      if (isMounted) {
-        console.error("Lỗi khi tải danh sách POI:", err);
+    const loadData = async () => {
+      try {
+        await fetchPois();
+      } catch (err) {
+        if (isMounted) {
+          console.error('Lỗi khi tải danh sách POI:', err);
+        }
       }
-    }
-  };
+    };
 
-  void loadData();
+    void loadData();
 
-  return () => {
-    isMounted = false;
-  };
-}, []);
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // Tải danh sách Tour từ CSDL Neon
   useEffect(() => {
     if (activeTab !== 'tours') return;
     let isMounted = true;
-    tourApi.getTours()
+    tourApi
+      .getTours()
       .then((data) => {
         if (isMounted) {
           setTourList(data || []);
@@ -252,7 +255,9 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
         console.error('Lỗi lấy danh sách Tour:', err);
         if (isMounted) setTourListLoading(false);
       });
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, [activeTab]);
 
   // Tải Analytics & Heatmap
@@ -261,13 +266,19 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
 
     let cancelled = false;
 
-    analyticsApi.getHeatmapData().then((data) => {
-      if (!cancelled) setHeatmapPoints(data);
-    }).catch(console.error);
+    analyticsApi
+      .getHeatmapData()
+      .then((data) => {
+        if (!cancelled) setHeatmapPoints(data);
+      })
+      .catch(console.error);
 
-    analyticsApi.getDashboardStats().then((data) => {
-      if (!cancelled) setStats(data);
-    }).catch(console.error);
+    analyticsApi
+      .getDashboardStats()
+      .then((data) => {
+        if (!cancelled) setStats(data);
+      })
+      .catch(console.error);
 
     const loadSessions = async () => {
       try {
@@ -305,29 +316,32 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Tính tọa độ Pixel cho Heatmap
-  const getPoiPixelCoords = useCallback((poi: PoiItem) => {
-    if (!poiList || poiList.length === 0) return { x: 425, y: 200 };
+  const getPoiPixelCoords = useCallback(
+    (poi: PoiItem) => {
+      if (!poiList || poiList.length === 0) return { x: 425, y: 200 };
 
-    const lats = poiList.map(p => p.location.lat);
-    const lngs = poiList.map(p => p.location.lng);
+      const lats = poiList.map((p) => p.location.lat);
+      const lngs = poiList.map((p) => p.location.lng);
 
-    const minLat = Math.min(...lats);
-    const maxLat = Math.max(...lats);
-    const minLng = Math.min(...lngs);
-    const maxLng = Math.max(...lngs);
+      const minLat = Math.min(...lats);
+      const maxLat = Math.max(...lats);
+      const minLng = Math.min(...lngs);
+      const maxLng = Math.max(...lngs);
 
-    const latDiff = (maxLat - minLat) || 0.001;
-    const lngDiff = (maxLng - minLng) || 0.001;
-    const padding = 70;
+      const latDiff = maxLat - minLat || 0.001;
+      const lngDiff = maxLng - minLng || 0.001;
+      const padding = 70;
 
-    const canvasWidth = 850;
-    const canvasHeight = 400;
+      const canvasWidth = 850;
+      const canvasHeight = 400;
 
-    const x = padding + ((poi.location.lng - minLng) / lngDiff) * (canvasWidth - padding * 2);
-    const y = padding + ((maxLat - poi.location.lat) / latDiff) * (canvasHeight - padding * 2);
+      const x = padding + ((poi.location.lng - minLng) / lngDiff) * (canvasWidth - padding * 2);
+      const y = padding + ((maxLat - poi.location.lat) / latDiff) * (canvasHeight - padding * 2);
 
-    return { x, y };
-  }, [poiList]);
+      return { x, y };
+    },
+    [poiList]
+  );
 
   // Render Canvas Heatmap Thực tế theo Tọa độ & Lượt nghe
   useEffect(() => {
@@ -348,22 +362,29 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
       ctx.strokeStyle = '#e2e8f0';
       ctx.lineWidth = 1;
       for (let x = 0; x < canvas.width; x += 50) {
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
       }
       for (let y = 0; y < canvas.height; y += 50) {
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
       }
 
       if (poiList.length === 0) return;
 
-      const maxWeight = Math.max(...heatmapPoints.map(hp => hp.weight), 1);
+      const maxWeight = Math.max(...heatmapPoints.map((hp) => hp.weight), 1);
 
       poiList.forEach((poi) => {
         const { x, y } = getPoiPixelCoords(poi);
 
-        const matchPoint = heatmapPoints.find(hp =>
-          (hp.id && hp.id === poi.id) ||
-          (hp.lat && Math.abs(hp.lat - poi.location.lat) < 0.001 && Math.abs(hp.lng - poi.location.lng) < 0.001)
+        const matchPoint = heatmapPoints.find(
+          (hp) =>
+            (hp.id && hp.id === poi.id) ||
+            (hp.lat && Math.abs(hp.lat - poi.location.lat) < 0.001 && Math.abs(hp.lng - poi.location.lng) < 0.001)
         );
 
         const weight = matchPoint ? matchPoint.weight : 1;
@@ -384,9 +405,13 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
         ctx.fill();
 
         ctx.fillStyle = '#FFFFFF';
-        ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x, y, 6, 0, Math.PI * 2);
+        ctx.fill();
         ctx.fillStyle = '#EF4444';
-        ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fill();
       });
     }
   }, [activeTab, poiList, heatmapPoints, getPoiPixelCoords]);
@@ -462,9 +487,7 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
   };
 
   const toggleSelectPoiForTour = (poiId: string) => {
-    setSelectedPoiIds(prev => 
-      prev.includes(poiId) ? prev.filter(id => id !== poiId) : [...prev, poiId]
-    );
+    setSelectedPoiIds((prev) => (prev.includes(poiId) ? prev.filter((id) => id !== poiId) : [...prev, poiId]));
   };
 
   const handleAddTour = async () => {
@@ -474,11 +497,21 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
     }
     try {
       setSubmittingTour(true);
-      const createdTour = await tourApi.createTour(newTourName.trim(), newTourDesc.trim(), selectedPoiIds);
+      const createdTour = await tourApi.createTour({
+        name: newTourName.trim(),
+        description: newTourDesc.trim(),
+        estimatedDurationMinutes: newTourDuration.trim() !== '' ? Number(newTourDuration) : null,
+        distanceKm: newTourDistance.trim() !== '' ? Number(newTourDistance) : null,
+        thumbnailUrl: newTourThumbnail.trim(),
+        poiIds: selectedPoiIds,
+      });
       alert('Khởi tạo lộ trình Tour thành công vào CSDL!');
-      setTourList([createdTour, ...tourList]);
+      setTourList([{ ...createdTour, poiCount: selectedPoiIds.length }, ...tourList]);
       setNewTourName('');
       setNewTourDesc('');
+      setNewTourDuration('');
+      setNewTourDistance('');
+      setNewTourThumbnail('');
       setSelectedPoiIds([]);
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
@@ -493,38 +526,45 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
 
   const handleOpenEditTourModal = async (tour: TourItem) => {
     setEditingTour(tour);
+    setLoadingEditTourPois(true);
     try {
-      const res = await axios.get(`http://localhost:5000/api/v1/admin/tours/${tour.id}/pois`);
-      if (res.data.success && Array.isArray(res.data.data)) {
-        setSelectedPoiIdsForEdit(res.data.data.map((p: { id: string }) => p.id));
-      } else {
-        setSelectedPoiIdsForEdit([]);
-      }
-    } catch {
+      const detail = await tourApi.getTourDetail(tour.id);
+      setEditingTour(detail);
+      setSelectedPoiIdsForEdit(Array.isArray(detail?.pois) ? detail.pois.map((p) => p.id) : []);
+    } catch (error) {
+      console.error('Lỗi lấy chi tiết tour:', error);
       setSelectedPoiIdsForEdit([]);
+    } finally {
+      setLoadingEditTourPois(false);
     }
   };
 
-  const handleSaveTourPois = async () => {
-    if (!editingTour) return;
+  const handleSaveFullTour = async (tourId: string, payload: FullTourUpdatePayload) => {
     try {
-      setSavingTourPois(true);
-      await tourApi.updateTourPois(editingTour.id, selectedPoiIdsForEdit);
-      alert('Cập nhật danh sách POI cho Tour thành công!');
-      setTourList(prev =>
-        prev.map(t =>
-          t.id === editingTour.id ? { ...t, poiCount: selectedPoiIdsForEdit.length } : t
+      await tourApi.updateTour(tourId, payload);
+      alert('Cập nhật toàn bộ thông tin Tour & thứ tự POI thành công!');
+      setTourList((prev) =>
+        prev.map((t) =>
+          t.id === tourId
+            ? {
+                ...t,
+                name: payload.name,
+                description: payload.description,
+                estimatedDurationMinutes: payload.estimatedDurationMinutes,
+                distanceKm: payload.distanceKm,
+                thumbnailUrl: payload.thumbnailUrl,
+                poiCount: payload.poiIds.length,
+              }
+            : t
         )
       );
       setEditingTour(null);
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
-        alert(error.response?.data?.error || 'Lỗi không thể cập nhật danh sách POI cho Tour');
+        alert(error.response?.data?.error || 'Lỗi không thể cập nhật Tour');
       } else {
-        alert('Lỗi không thể cập nhật danh sách POI cho Tour');
+        alert('Lỗi không thể cập nhật Tour');
       }
-    } finally {
-      setSavingTourPois(false);
     }
   };
 
@@ -575,7 +615,9 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
     utterance.lang = selectedLangObj.speechLang;
 
     const voices = window.speechSynthesis.getVoices();
-    const matchedVoice = voices.find(v => v.lang.startsWith(selectedLangObj.speechLang) || v.lang.replace('_', '-').startsWith(selectedLangObj.speechLang));
+    const matchedVoice = voices.find(
+      (v) => v.lang.startsWith(selectedLangObj.speechLang) || v.lang.replace('_', '-').startsWith(selectedLangObj.speechLang)
+    );
     if (matchedVoice) {
       utterance.voice = matchedVoice;
     }
@@ -589,7 +631,6 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
 
   return (
     <div style={{ display: 'flex', width: '100vw', height: '100vh', margin: 0, padding: 0, boxSizing: 'border-box', backgroundColor: '#F8FAFC', fontFamily: 'Segoe UI, sans-serif', overflow: 'hidden' }}>
-      
       {/* Sidebar Navigation */}
       <div style={{ width: '280px', height: '100vh', backgroundColor: '#FFFFFF', padding: '24px 20px', borderRight: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', flexShrink: 0, boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '32px' }}>
@@ -630,7 +671,6 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
 
       {/* Main Area */}
       <div style={{ flex: 1, height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        
         {/* Top Header */}
         <header style={{ backgroundColor: '#F8FAFC', color: '#0F172A', padding: '16px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, borderBottom: '1px solid #E2E8F0' }}>
           <h2 style={{ fontSize: '16px', fontWeight: 800, margin: 0, color: '#1E293B' }}>{t.siteTitle}</h2>
@@ -669,7 +709,6 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
 
         {/* Scrollable Main Content */}
         <div style={{ flex: 1, padding: '32px', overflow: 'auto', boxSizing: 'border-box' }}>
-          
           {/* TAB 1: POI MANAGEMENT */}
           {activeTab === 'cms' && (
             <div>
@@ -747,7 +786,7 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
                 <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#1E293B', marginTop: 0, marginBottom: '16px' }}>
                   {t.poiListTitle} ({poiListLoading ? '...' : poiList.length})
                 </h3>
-                
+
                 {poiListLoading ? (
                   <div style={{ textAlign: 'center', padding: '20px', color: '#64748B', fontSize: '13px' }}>Đang tải dữ liệu POI từ CSDL...</div>
                 ) : (
@@ -757,7 +796,9 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxWidth: '280px' }}>
                           <span style={{ fontSize: '12px', fontWeight: 700, color: '#2563EB' }}>{item.code || item.id}</span>
                           <span style={{ fontSize: '14px', fontWeight: 700, color: '#0F172A' }}>{item.name}</span>
-                          <span style={{ fontSize: '12px', color: '#64748B' }}>{t.coordsLabel}: {item.location?.lat}, {item.location?.lng}</span>
+                          <span style={{ fontSize: '12px', color: '#64748B' }}>
+                            {t.coordsLabel}: {item.location?.lat}, {item.location?.lng}
+                          </span>
                         </div>
 
                         <div style={{ fontSize: '12px', color: '#475569', flex: 1, margin: '0 20px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -786,7 +827,7 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
                           >
                             {playingAudioId === item.id ? `⏹ ${t.stop}` : `▶ ${t.preview}`}
                           </button>
-                          
+
                           <button
                             type="button"
                             disabled={deletingPoiId === item.id}
@@ -812,8 +853,8 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
               {/* Form Tạo Tour Du Lịch Mới & Chọn POIs */}
               <div style={{ backgroundColor: '#FFFFFF', padding: '20px', borderRadius: '12px', border: '1px solid #E2E8F0', marginBottom: '24px' }}>
                 <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#1E293B', marginTop: 0, marginBottom: '12px' }}>{t.createTourTitle}</h3>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
                   <input
                     type="text"
                     placeholder={t.tourNamePlaceholder}
@@ -822,10 +863,37 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
                     style={{ padding: '10px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px' }}
                   />
                   <input
+                    type="number"
+                    min="0"
+                    placeholder="Thời lượng (phút)..."
+                    value={newTourDuration}
+                    onChange={(e) => setNewTourDuration(e.target.value)}
+                    style={{ padding: '10px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px' }}
+                  />
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    placeholder="Khoảng cách (km)..."
+                    value={newTourDistance}
+                    onChange={(e) => setNewTourDistance(e.target.value)}
+                    style={{ padding: '10px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px' }}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                  <input
                     type="text"
                     placeholder="Mô tả ngắn lộ trình tour du lịch..."
                     value={newTourDesc}
                     onChange={(e) => setNewTourDesc(e.target.value)}
+                    style={{ padding: '10px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px' }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Link ảnh bìa Tour (Thumbnail URL)..."
+                    value={newTourThumbnail}
+                    onChange={(e) => setNewTourThumbnail(e.target.value)}
                     style={{ padding: '10px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px' }}
                   />
                 </div>
@@ -862,7 +930,7 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
                 </button>
               </div>
 
-              {/* Danh sách Tour & Nút Gán POI */}
+              {/* Danh sách Tour đầy đủ thông tin & Nút Sửa / Xóa */}
               <div style={{ backgroundColor: '#FFFFFF', borderRadius: '12px', border: '1px solid #E2E8F0', padding: '20px' }}>
                 <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#1E293B', marginTop: 0, marginBottom: '16px' }}>
                   {t.tourListTitle} ({tourListLoading ? '...' : tourList.length})
@@ -874,19 +942,39 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {tourList.map((tour) => (
                       <div key={tour.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', border: '1px solid #E2E8F0', borderRadius: '10px', backgroundColor: '#F8FAFC' }}>
-                        <div>
-                          <div style={{ fontSize: '11px', fontWeight: 700, color: '#2563EB' }}>{tour.id}</div>
-                          <div style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>{tour.name}</div>
-                          <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>{t.poiCountLabel}: <strong style={{ color: '#0F172A' }}>{tour.poiCount || 0} điểm</strong></div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1 }}>
+                          {tour.thumbnailUrl ? (
+                            <img
+                              src={tour.thumbnailUrl}
+                              alt={tour.name}
+                              style={{ width: '56px', height: '56px', borderRadius: '8px', objectFit: 'cover', border: '1px solid #CBD5E1' }}
+                            />
+                          ) : (
+                            <div style={{ width: '56px', height: '56px', borderRadius: '8px', backgroundColor: '#E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', color: '#64748B', fontWeight: 600 }}>
+                              No Img
+                            </div>
+                          )}
+                          <div>
+                            <div style={{ fontSize: '11px', fontWeight: 700, color: '#2563EB' }}>{tour.id}</div>
+                            <div style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A' }}>{tour.name}</div>
+                            {tour.description && (
+                              <div style={{ fontSize: '12px', color: '#475569', marginTop: '2px' }}>{tour.description}</div>
+                            )}
+                            <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px', display: 'flex', gap: '14px' }}>
+                              <span>📍 {t.poiCountLabel}: <strong style={{ color: '#0F172A' }}>{tour.poiCount || 0} điểm</strong></span>
+                              <span>⏱️ Thời lượng: <strong style={{ color: '#0F172A' }}>{tour.estimatedDurationMinutes ? `${tour.estimatedDurationMinutes} phút` : '—'}</strong></span>
+                              <span>📏 Quãng đường: <strong style={{ color: '#0F172A' }}>{tour.distanceKm ? `${tour.distanceKm} km` : '—'}</strong></span>
+                            </div>
+                          </div>
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <button
                             type="button"
                             onClick={() => handleOpenEditTourModal(tour)}
-                            style={{ padding: '6px 12px', backgroundColor: '#EFF6FF', color: '#2563EB', border: '1px solid #BFDBFE', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                            style={{ padding: '6px 12px', backgroundColor: '#ffc107', color: '#000000', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
                           >
-                            ⚙️ Gán POIs vào Tour
+                            ✏️ Sửa Tour & POIs
                           </button>
                           <button
                             type="button"
@@ -896,9 +984,6 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
                           >
                             {deletingTourId === tour.id ? 'Đang xóa...' : '🗑️ Xóa Tour'}
                           </button>
-                          <span style={{ padding: '4px 10px', backgroundColor: tour.isActive ? '#DCFCE7' : '#FEF3C7', color: tour.isActive ? '#166534' : '#92400E', borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>
-                            {tour.isActive ? t.activeStatus : t.draftStatus}
-                          </span>
                         </div>
                       </div>
                     ))}
@@ -906,58 +991,15 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
                 )}
               </div>
 
-              {/* MODAL GÁN POIS CHO TOUR CÓ SẴN */}
-              {editingTour && (
-                <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(15, 23, 42, 0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-                  <div style={{ width: '480px', backgroundColor: '#FFFFFF', borderRadius: '16px', padding: '24px', boxShadow: '0 20px 25px rgba(0,0,0,0.15)' }}>
-                    <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#0F172A', margin: '0 0 4px 0' }}>Liên kết POI cho Tour</h3>
-                    <p style={{ fontSize: '13px', fontWeight: 700, color: '#2563EB', margin: '0 0 16px 0' }}>{editingTour.name}</p>
-
-                    <label style={{ fontSize: '12px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '8px' }}>
-                      Tích chọn danh sách địa điểm theo thứ tự lịch trình (1, 2, 3...):
-                    </label>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto', border: '1px solid #E2E8F0', padding: '10px', borderRadius: '8px', backgroundColor: '#F8FAFC', marginBottom: '20px' }}>
-                      {poiList.map((poi) => {
-                        const orderIdx = selectedPoiIdsForEdit.indexOf(poi.id);
-                        const isChecked = orderIdx !== -1;
-                        return (
-                          <div
-                            key={poi.id}
-                            onClick={() => {
-                              setSelectedPoiIdsForEdit(prev => 
-                                prev.includes(poi.id) ? prev.filter(id => id !== poi.id) : [...prev, poi.id]
-                              );
-                            }}
-                            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: '6px', border: `1px solid ${isChecked ? '#2563EB' : '#CBD5E1'}`, backgroundColor: isChecked ? '#EFF6FF' : '#FFFFFF', cursor: 'pointer' }}
-                          >
-                            <span style={{ fontSize: '13px', fontWeight: isChecked ? 700 : 500, color: isChecked ? '#2563EB' : '#0F172A' }}>{poi.name}</span>
-                            {isChecked && <span style={{ backgroundColor: '#2563EB', color: '#FFF', borderRadius: '50%', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}>{orderIdx + 1}</span>}
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                      <button
-                        type="button"
-                        onClick={() => setEditingTour(null)}
-                        style={{ padding: '8px 16px', border: '1px solid #CBD5E1', borderRadius: '8px', backgroundColor: '#FFF', color: '#475569', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}
-                      >
-                        Hủy
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleSaveTourPois}
-                        disabled={savingTourPois}
-                        style={{ padding: '8px 16px', border: 'none', borderRadius: '8px', backgroundColor: '#2563EB', color: '#FFF', fontWeight: 700, fontSize: '13px', cursor: savingTourPois ? 'not-allowed' : 'pointer' }}
-                      >
-                        {savingTourPois ? 'Đang lưu...' : 'Lưu danh sách POI'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+              <EditTourModal
+                tour={editingTour}
+                isOpen={editingTour !== null}
+                poiList={poiList}
+                initialSelectedPoiIds={selectedPoiIdsForEdit}
+                loadingPois={loadingEditTourPois}
+                onClose={() => setEditingTour(null)}
+                onSave={handleSaveFullTour}
+              />
             </div>
           )}
 
@@ -984,7 +1026,9 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
 
                 <div style={{ backgroundColor: '#FFFFFF', padding: '20px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
                   <div style={{ fontSize: '12px', color: '#64748B', fontWeight: 600, marginBottom: '8px' }}>{t.avgDuration}</div>
-                  <div style={{ fontSize: '26px', fontWeight: 800, color: '#10B981' }}>{stats.avgDurationMinutes} <span style={{ fontSize: '12px', color: '#64748B' }}>{t.minutesUnit}</span></div>
+                  <div style={{ fontSize: '26px', fontWeight: 800, color: '#10B981' }}>
+                    {stats.avgDurationMinutes} <span style={{ fontSize: '12px', color: '#64748B' }}>{t.minutesUnit}</span>
+                  </div>
                 </div>
 
                 <div style={{ backgroundColor: '#FFFFFF', padding: '20px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
@@ -994,12 +1038,14 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
               </div>
 
               <div style={{ backgroundColor: '#FFFFFF', borderRadius: '12px', border: '1px solid #E2E8F0', padding: '20px' }}>
-                <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', margin: '0 0 4px 0' }}>{t.heatmapTitle} ({t.poiCountLabel}: {poiList.length})</h3>
+                <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0F172A', margin: '0 0 4px 0' }}>
+                  {t.heatmapTitle} ({t.poiCountLabel}: {poiList.length})
+                </h3>
                 <p style={{ fontSize: '12px', color: '#64748B', margin: '0 0 16px 0' }}>{t.heatmapDesc}</p>
-                
+
                 <div style={{ width: '100%', height: '400px', backgroundColor: '#F8FAFC', borderRadius: '12px', position: 'relative', overflow: 'hidden', border: '1px solid #E2E8F0' }}>
                   <canvas ref={canvasRef} width={850} height={400} style={{ width: '100%', height: '100%', display: 'block' }} />
-                  
+
                   {poiList.map((poi) => {
                     const { x, y } = getPoiPixelCoords(poi);
 
@@ -1020,11 +1066,13 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
                           alignItems: 'center',
                           gap: '6px',
                           pointerEvents: 'none',
-                          whiteSpace: 'nowrap'
+                          whiteSpace: 'nowrap',
                         }}
                       >
                         <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#EF4444', display: 'inline-block' }}></span>
-                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#0F172A' }}>{poi.code || poi.id}: {poi.name}</span>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#0F172A' }}>
+                          {poi.code || poi.id}: {poi.name}
+                        </span>
                       </div>
                     );
                   })}
@@ -1035,12 +1083,7 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
         </div>
       </div>
 
-      <EditPoiModal
-        poi={selectedPoi}
-        isOpen={selectedPoi !== null}
-        onClose={() => setSelectedPoi(null)}
-        onSave={handleSavePoi}
-      />
+      <EditPoiModal poi={selectedPoi} isOpen={selectedPoi !== null} onClose={() => setSelectedPoi(null)} onSave={handleSavePoi} />
 
       {/* Modal QR Code */}
       {selectedPoiForQR && (
@@ -1057,7 +1100,9 @@ const handleSavePoi = async (updatedData: UpdatePoiPayload & { id: string }) => 
               />
             </div>
 
-            <div style={{ fontSize: '12px', color: '#334155', marginBottom: '4px' }}>{t.poiCodeLabel}: <span style={{ fontWeight: 700, color: '#2563EB' }}>{selectedPoiForQR.code || selectedPoiForQR.id}</span></div>
+            <div style={{ fontSize: '12px', color: '#334155', marginBottom: '4px' }}>
+              {t.poiCodeLabel}: <span style={{ fontWeight: 700, color: '#2563EB' }}>{selectedPoiForQR.code || selectedPoiForQR.id}</span>
+            </div>
             <div style={{ fontSize: '11px', color: '#94A3B8', textAlign: 'center', marginBottom: '20px' }}>{t.qrSub}</div>
 
             <button
