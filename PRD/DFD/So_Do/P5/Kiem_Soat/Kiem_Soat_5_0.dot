@@ -1,0 +1,15 @@
+// Phiếu kiểm soát xử lý 5.0: code được cập nhật ở file MD cùng tên.
+// Commit đối chiếu: e75a63f7b916d0d90c2a608d1fc8af3d4907489b
+digraph Control {
+graph [rankdir=LR, bgcolor="white", fontname="Arial", label="KIỂM SOÁT XỬ LÝ 5.0 – Ghi nhận lịch sử nghe", labelloc=t,fontsize=17, pad=0.52,nodesep=0.90,ranksep=2.10, splines=polyline, concentrate=false, newrank=true];
+node [fontname="Arial",fontsize=11];
+edge [fontname="Arial",fontsize=9,arrowsize=0.92,color="#526879",penwidth=1.55];
+C [shape=circle,style=filled,fillcolor="#F5A623",fontcolor="white",fixedsize=true,width=2.05,height=2.05,label="5.0
+Ghi nhận lịch sử nghe"];
+IN1 [shape=box,style="rounded,filled",color="#1687C1",fillcolor="#E9F5FC",fontcolor="#1B384A",label="Tiến trình khác\nI06 · Ngữ cảnh trigger (không phải lượt nghe)\nI10 · 4.0 – Quản lý phiên tham quan\nI11 · Sự kiện nghe thực tế / thời lượng",margin="0.16,0.14"];
+IN1 -> C;
+OUT1 [shape=box,style="rounded,filled",color="#087E83",fillcolor="#EAF9F8",fontcolor="#1B384A",label="Kho dữ liệu\nI12 · Kho lịch sử nghe",margin="0.16,0.14"];
+C -> OUT1;
+{rank=same; IN1;}
+{rank=same; OUT1;}
+}

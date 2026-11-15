@@ -1,0 +1,35 @@
+// Bản V10: QR/audio chỉ được xem là luồng nghiệp vụ dự kiến; một phần chưa hoạt động đầu-cuối.
+// Đối chiếu commit: e75a63f7b916d0d90c2a608d1fc8af3d4907489b. Không đổi số lượng hoặc chiều luồng.
+// DFD Level 0 (Context) — source Graphviz DOT.
+// Render: dot -Tsvg DFD_Level_0.dot -o DFD_Level_0.svg
+// Render: dot -Tpng -Gdpi=180 DFD_Level_0.dot -o DFD_Level_0.png
+// Các cạnh có mã F01–F20 là 20 luồng dữ liệu độc lập.
+digraph DFD0 {
+graph [charset="UTF-8", label="DFD MỨC 0 — SƠ ĐỒ NGỮ CẢNH\nHỆ THỐNG TỰ ĐỘNG THUYẾT MINH ĐA NGÔN NGỮ", labelloc=t, labeljust=c, fontname="Arial", fontsize=20, fontcolor="#203044", rankdir=LR, splines=polyline, concentrate=false, newrank=true, nodesep=1.15, ranksep=3.8, bgcolor="white", pad=0.5, outputorder=edgesfirst];
+node [fontname="Arial", fontsize=15]; edge [fontname="Arial", fontsize=10, color="#425466", arrowsize=0.90, penwidth=1.45];
+Visitor [label="E1 · KHÁCH THAM QUAN", shape=box, style=filled, fillcolor="#1687C1", fontcolor=white, margin="0.3,0.3"];
+P0 [label="0\n\nHỆ THỐNG TỰ ĐỘNG\nTHUYẾT MINH\nĐA NGÔN NGỮ", shape=circle, style=filled, fillcolor="#F5A623", fontcolor=white, width=3.2, height=3.2, fixedsize=true];
+Admin [label="E2 · QUẢN TRỊ VIÊN", shape=box, style=filled, fillcolor="#1687C1", fontcolor=white, margin="0.3,0.3"];
+Google [label="E3 · GOOGLE TRANSLATE API", shape=box, style=filled, fillcolor="#1687C1", fontcolor=white, margin="0.3,0.3"];
+{rank=same; Admin; Google}
+Visitor -> P0 [label="F01 · Yêu cầu tra cứu POI, từ khóa"];
+P0 -> Visitor [label="F02 · Danh sách POI, vị trí, chi tiết"];
+Visitor -> P0 [label="F03 · Tọa độ GPS"];
+P0 -> Visitor [label="F04 · POI trong vùng kích hoạt"];
+Visitor -> P0 [label="F05 · Mã định danh QR"];
+Visitor -> P0 [label="F06 · Ngôn ngữ, giọng đọc"];
+P0 -> Visitor [label="F07 · Nội dung thuyết minh, âm thanh"];
+Visitor -> P0 [label="F08 · Yêu cầu phát/tạm dừng audio"];
+Admin -> P0 [label="F09 · Thông tin đăng nhập / refresh / đăng xuất"];
+P0 -> Admin [label="F10 · Token / trạng thái xác thực"];
+Admin -> P0 [label="F11 · Dữ liệu POI, nội dung"];
+P0 -> Admin [label="F12 · Danh sách POI, kết quả"];
+Admin -> P0 [label="F13 · Thông tin tour, danh sách POI"];
+P0 -> Admin [label="F14 · Thông tin tour, kết quả"];
+Admin -> P0 [label="F15 · Yêu cầu thống kê (chưa lọc động)"];
+P0 -> Admin [label="F16 · Báo cáo, heatmap, số phiên"];
+P0 -> Google [label="F17 · Văn bản gốc, ngôn ngữ đích"];
+Google -> P0 [label="F18 · Nội dung đã dịch"];
+Visitor -> P0 [label="F19 · Loại thiết bị / dữ liệu phiên, heartbeat, offline"];
+P0 -> Visitor [label="F20 · Mã phiên / trạng thái phiên"];
+}

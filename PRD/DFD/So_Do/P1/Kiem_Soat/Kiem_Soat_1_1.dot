@@ -1,0 +1,15 @@
+// Phiếu kiểm soát xử lý 1.1: code được cập nhật ở file MD cùng tên.
+// Commit đối chiếu: e75a63f7b916d0d90c2a608d1fc8af3d4907489b
+digraph Control {
+graph [rankdir=LR, bgcolor="white", fontname="Arial", label="KIỂM SOÁT XỬ LÝ 1.1 – Tiếp nhận yêu cầu xác thực", labelloc=t,fontsize=17, pad=0.52,nodesep=0.90,ranksep=2.10, splines=polyline, concentrate=false, newrank=true];
+node [fontname="Arial",fontsize=11];
+edge [fontname="Arial",fontsize=9,arrowsize=0.92,color="#526879",penwidth=1.55];
+C [shape=circle,style=filled,fillcolor="#F5A623",fontcolor="white",fixedsize=true,width=2.05,height=2.05,label="1.1
+Tiếp nhận yêu cầu xác thực"];
+IN1 [shape=box,style="rounded,filled",color="#1687C1",fillcolor="#E9F5FC",fontcolor="#1B384A",label="Tác nhân ngoài\nF09 · Đăng nhập / refresh / đăng xuất",margin="0.16,0.14"];
+IN1 -> C;
+OUT1 [shape=box,style="rounded,filled",color="#087E83",fillcolor="#EAF9F8",fontcolor="#1B384A",label="Luồng trung gian\nT11 · Định danh tài khoản / token cần kiểm tra\nT12 · Thông tin bí mật hoặc refresh token",margin="0.16,0.14"];
+C -> OUT1;
+{rank=same; IN1;}
+{rank=same; OUT1;}
+}
