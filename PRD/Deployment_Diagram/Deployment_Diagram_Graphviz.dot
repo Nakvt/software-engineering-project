@@ -1,0 +1,24 @@
+digraph TourismDeployment {
+  graph [label="UML Deployment Diagram: Tourism CMS – Linh Ung Pagoda\nSource audit: e75a63f7", labelloc=t, labeljust=c,
+         fontname="Arial", fontsize=25, bgcolor="white", nodesep=0.78, ranksep=1.02, pad=0.45,
+         compound=true, splines=polyline, outputorder=edgesfirst];
+  node [fontname="Arial", fontsize=15, color="#142b47", penwidth=1.5, style="filled", fillcolor="#d8e9fc"];
+  edge [fontname="Arial", fontsize=12, color="#142b47", arrowsize=0.75, penwidth=1.5];
+
+  admin [shape=box3d, label="<<device>>\nAdmin Device\n\n<<component>>\nWeb Browser", width=3.6, height=1.8];
+  mobile [shape=box3d, label="<<device>>\nTourist Mobile Device\n\n<<executionEnvironment>>\nExpo (React Native)\n\n<<component>>\nTourism Mobile App\n\nLeaflet WebView; GPS / QR / TTS", width=5.0, height=2.2];
+  vercel [shape=box3d, label="<<node>>\nVercel Server\n\n<<component>>\nFrontend (React + Vite)\n\n<<artifact>>\nWeb CMS Application", width=4.0, height=2.1];
+  render [shape=box3d, label="<<node>>\nRender Server\n\n<<component>>\nBackend API (Node.js / Express)\n\n<<artifact>>\nNode.js Express Backend API", width=4.6, height=2.1];
+  map [shape=box3d, label="<<external service>>\nOpenStreetMap Tiles", width=3.15, height=1.1];
+  translate [shape=box3d, label="<<external service>>\nGoogle Translate API*", width=3.2, height=1.1];
+  neon [shape=box3d, label="<<database server>>\nNeon PostgreSQL*\n\n<<artifact>>\nPostgreSQL schema (10 tables)", width=4.7, height=1.8];
+  {rank=same; admin; mobile}
+  {rank=same; vercel; render; map}
+  {rank=same; neon; translate}
+  admin -> vercel [label="HTTPS"];
+  mobile -> render [label="HTTPS / REST API"];
+  vercel -> render [label="HTTPS / REST API", constraint=false];
+  render -> neon [label="PostgreSQL\nSSL for Neon"];
+  mobile -> map [label="HTTPS · OSM tiles", style=dashed, constraint=false];
+  render -> translate [label="Translation request\n(best-effort)", style=dashed, constraint=false];
+}

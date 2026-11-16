@@ -1,0 +1,74 @@
+// Bản V10: P7 có DELETE tour; QR và audio file còn một phần; analytics chưa có filter động.
+// Đối chiếu commit: e75a63f7b916d0d90c2a608d1fc8af3d4907489b. Không đổi số lượng hoặc chiều luồng.
+// DFD LEVEL 1 — 08 tiến trình, 06 kho dữ liệu logic, 20 luồng biên (F01–F20).
+// Dot is authoritative source. Render with: dot -Tsvg DFD_Level_1.dot -o DFD_Level_1.svg
+// Graphviz tự bố trí đường; nhãn Ixx được giải nghĩa đầy đủ trong Description.md.
+digraph DFD1 {
+ graph [label="DFD MỨC 1 — HỆ THỐNG TỰ ĐỘNG THUYẾT MINH ĐA NGÔN NGỮ\nPhân rã tiến trình 0 · NeonDB PostgreSQL (kho dữ liệu logic)", labelloc=t, labeljust=c, fontname="Arial", fontsize=22, fontcolor="#203044", rankdir=LR, nodesep=1.20, ranksep=2.85, splines=polyline, concentrate=false, newrank=true, bgcolor="white", pad=0.65, outputorder=edgesfirst];
+ node [fontname="Arial", fontsize=12]; edge [fontname="Arial", fontsize=9, color="#64748B", arrowsize=0.90, penwidth=1.45];
+ E1 [label="E1\nKHÁCH THAM QUAN",shape=box,style=filled,fillcolor="#1687C1",fontcolor=white,margin="0.25,0.2"];
+ E2 [label="E2\nQUẢN TRỊ VIÊN",shape=box,style=filled,fillcolor="#1687C1",fontcolor=white,margin="0.25,0.2"];
+ E3 [label="E3\nGOOGLE TRANSLATE",shape=box,style=filled,fillcolor="#1687C1",fontcolor=white,margin="0.25,0.2"];
+ P1 [label="1.0\nXác thực\nquản trị",shape=circle,style=filled,fillcolor="#F5A623",fontcolor=white,width=1.65,height=1.65,fixedsize=true];
+ P2 [label="2.0\nTra cứu POI\n& thuyết minh",shape=circle,style=filled,fillcolor="#F5A623",fontcolor=white,width=1.65,height=1.65,fixedsize=true];
+ P3 [label="3.0\nGPS &\ngeofence",shape=circle,style=filled,fillcolor="#F5A623",fontcolor=white,width=1.65,height=1.65,fixedsize=true];
+ P4 [label="4.0\nQuản lý\nphiên khách",shape=circle,style=filled,fillcolor="#F5A623",fontcolor=white,width=1.65,height=1.65,fixedsize=true];
+ P5 [label="5.0\nGhi nhận\nlịch sử nghe",shape=circle,style=filled,fillcolor="#F5A623",fontcolor=white,width=1.65,height=1.65,fixedsize=true];
+ P6 [label="6.0\nQuản lý POI\n& nội dung",shape=circle,style=filled,fillcolor="#F5A623",fontcolor=white,width=1.65,height=1.65,fixedsize=true];
+ P7 [label="7.0\nQuản lý\ntour",shape=circle,style=filled,fillcolor="#F5A623",fontcolor=white,width=1.65,height=1.65,fixedsize=true];
+ P8 [label="8.0\nThống kê\n& heatmap",shape=circle,style=filled,fillcolor="#F5A623",fontcolor=white,width=1.65,height=1.65,fixedsize=true];
+ D1 [shape=plain, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD WIDTH="250" HEIGHT="4" BGCOLOR="#087E83"></TD></TR><TR><TD HEIGHT="52" BGCOLOR="#EAF9F8"><FONT FACE="Arial" COLOR="#164E50" POINT-SIZE="12">D1  |  POI / danh mục<BR/>/ nội dung</FONT></TD></TR><TR><TD HEIGHT="4" BGCOLOR="#087E83"></TD></TR></TABLE>>];
+ D2 [shape=plain, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD WIDTH="250" HEIGHT="4" BGCOLOR="#087E83"></TD></TR><TR><TD HEIGHT="52" BGCOLOR="#EAF9F8"><FONT FACE="Arial" COLOR="#164E50" POINT-SIZE="12">D2  |  Tour / tour-POI</FONT></TD></TR><TR><TD HEIGHT="4" BGCOLOR="#087E83"></TD></TR></TABLE>>];
+ D3 [shape=plain, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD WIDTH="250" HEIGHT="4" BGCOLOR="#087E83"></TD></TR><TR><TD HEIGHT="52" BGCOLOR="#EAF9F8"><FONT FACE="Arial" COLOR="#164E50" POINT-SIZE="12">D3  |  Phiên tham quan</FONT></TD></TR><TR><TD HEIGHT="4" BGCOLOR="#087E83"></TD></TR></TABLE>>];
+ D4 [shape=plain, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD WIDTH="250" HEIGHT="4" BGCOLOR="#087E83"></TD></TR><TR><TD HEIGHT="52" BGCOLOR="#EAF9F8"><FONT FACE="Arial" COLOR="#164E50" POINT-SIZE="12">D4  |  Nhật ký GPS</FONT></TD></TR><TR><TD HEIGHT="4" BGCOLOR="#087E83"></TD></TR></TABLE>>];
+ D5 [shape=plain, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD WIDTH="250" HEIGHT="4" BGCOLOR="#087E83"></TD></TR><TR><TD HEIGHT="52" BGCOLOR="#EAF9F8"><FONT FACE="Arial" COLOR="#164E50" POINT-SIZE="12">D5  |  Lịch sử nghe</FONT></TD></TR><TR><TD HEIGHT="4" BGCOLOR="#087E83"></TD></TR></TABLE>>];
+ D6 [shape=plain, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD WIDTH="250" HEIGHT="4" BGCOLOR="#087E83"></TD></TR><TR><TD HEIGHT="52" BGCOLOR="#EAF9F8"><FONT FACE="Arial" COLOR="#164E50" POINT-SIZE="12">D6  |  Admin / token</FONT></TD></TR><TR><TD HEIGHT="4" BGCOLOR="#087E83"></TD></TR></TABLE>>];
+ {rank=same; E1; E2; E3;}
+ {rank=same; P1; P2; P3; P4; P5; P6; P7; P8;}
+ {rank=same; D1; D2; D3; D4; D5; D6;}
+ E1 -> P2 [style=invis,weight=80]; E2 -> P6 [style=invis,weight=80]; P2 -> D1 [style=invis,weight=60];
+ E1 -> P2 [label="F01 · Yêu cầu tra cứu POI",color="#2563A6",fontcolor="#1D4C88",penwidth=1.35,constraint=false];
+ P2 -> E1 [label="F02 · Danh sách/chi tiết POI",color="#2563A6",fontcolor="#1D4C88",penwidth=1.35,constraint=false];
+ E1 -> P3 [label="F03 · Tọa độ GPS",color="#2563A6",fontcolor="#1D4C88",penwidth=1.35,constraint=false];
+ P3 -> E1 [label="F04 · POI kích hoạt",color="#2563A6",fontcolor="#1D4C88",penwidth=1.35,constraint=false];
+ E1 -> P2 [label="F05 · Mã QR",color="#2563A6",fontcolor="#1D4C88",penwidth=1.35,constraint=false];
+ E1 -> P2 [label="F06 · Ngôn ngữ, giọng đọc",color="#2563A6",fontcolor="#1D4C88",penwidth=1.35,constraint=false];
+ P2 -> E1 [label="F07 · Nội dung thuyết minh",color="#2563A6",fontcolor="#1D4C88",penwidth=1.35,constraint=false];
+ E1 -> P2 [label="F08 · Yêu cầu phát/tạm dừng",color="#2563A6",fontcolor="#1D4C88",penwidth=1.35,constraint=false];
+ E2 -> P1 [label="F09 · Đăng nhập / refresh / đăng xuất",color="#2563A6",fontcolor="#1D4C88",penwidth=1.35,constraint=false];
+ P1 -> E2 [label="F10 · Token / trạng thái xác thực",color="#2563A6",fontcolor="#1D4C88",penwidth=1.35,constraint=false];
+ E2 -> P6 [label="F11 · Dữ liệu POI/nội dung",color="#2563A6",fontcolor="#1D4C88",penwidth=1.35,constraint=false];
+ P6 -> E2 [label="F12 · Danh sách/kết quả POI",color="#2563A6",fontcolor="#1D4C88",penwidth=1.35,constraint=false];
+ E2 -> P7 [label="F13 · Dữ liệu tour/POI",color="#2563A6",fontcolor="#1D4C88",penwidth=1.35,constraint=false];
+ P7 -> E2 [label="F14 · Thông tin/kết quả tour",color="#2563A6",fontcolor="#1D4C88",penwidth=1.35,constraint=false];
+ E2 -> P8 [label="F15 · Yêu cầu thống kê (chưa lọc động)",color="#2563A6",fontcolor="#1D4C88",penwidth=1.35,constraint=false];
+ P8 -> E2 [label="F16 · Thống kê, heatmap",color="#2563A6",fontcolor="#1D4C88",penwidth=1.35,constraint=false];
+ P6 -> E3 [label="F17 · Văn bản cần dịch",color="#2563A6",fontcolor="#1D4C88",penwidth=1.35,constraint=false];
+ E3 -> P6 [label="F18 · Văn bản đã dịch",color="#2563A6",fontcolor="#1D4C88",penwidth=1.35,constraint=false];
+ P2 -> D1 [xlabel="I01",color="#5B7280",fontcolor="#465C6C",arrowsize=0.6,constraint=false];
+ D1 -> P2 [xlabel="I02",color="#5B7280",fontcolor="#465C6C",arrowsize=0.6,constraint=false];
+ P3 -> D1 [xlabel="I03",color="#5B7280",fontcolor="#465C6C",arrowsize=0.6,constraint=false];
+ D1 -> P3 [xlabel="I04",color="#5B7280",fontcolor="#465C6C",arrowsize=0.6,constraint=false];
+ P3 -> D4 [xlabel="I05",color="#5B7280",fontcolor="#465C6C",arrowsize=0.6,constraint=false];
+ P3 -> P5 [xlabel="I06 · Ngữ cảnh trigger (không phải lượt nghe)",color="#B26C16",fontcolor="#465C6C",arrowsize=0.6,constraint=false];
+ P3 -> P4 [xlabel="I07 · Hoạt động GPS / phiên",color="#B26C16",fontcolor="#465C6C",arrowsize=0.6,constraint=false];
+ P4 -> D3 [xlabel="I08 · Tạo phiên / heartbeat / offline",color="#5B7280",fontcolor="#465C6C",arrowsize=0.6,constraint=false];
+ D3 -> P4 [xlabel="I09 · Mã phiên / trạng thái",color="#5B7280",fontcolor="#465C6C",arrowsize=0.6,constraint=false];
+ P4 -> P5 [xlabel="I10",color="#B26C16",fontcolor="#465C6C",arrowsize=0.6,constraint=false];
+ P2 -> P5 [xlabel="I11 · Sự kiện nghe sau phát (trigger chưa chuẩn)",color="#B26C16",fontcolor="#465C6C",arrowsize=0.6,constraint=false];
+ P5 -> D5 [xlabel="I12",color="#5B7280",fontcolor="#465C6C",arrowsize=0.6,constraint=false];
+ P1 -> D6 [xlabel="I13 · Lưu / thu hồi refresh token",color="#5B7280",fontcolor="#465C6C",arrowsize=0.6,constraint=false];
+ D6 -> P1 [xlabel="I14 · Dữ liệu admin / token",color="#5B7280",fontcolor="#465C6C",arrowsize=0.6,constraint=false];
+ P1 -> D6 [xlabel="I24 · Tiêu chí tra cứu tài khoản/token",color="#5B7280",fontcolor="#465C6C",arrowsize=0.6,constraint=false];
+ P6 -> D1 [xlabel="I15",color="#5B7280",fontcolor="#465C6C",arrowsize=0.6,constraint=false];
+ D1 -> P6 [xlabel="I16",color="#5B7280",fontcolor="#465C6C",arrowsize=0.6,constraint=false];
+ P7 -> D2 [xlabel="I17",color="#5B7280",fontcolor="#465C6C",arrowsize=0.6,constraint=false];
+ D2 -> P7 [xlabel="I18",color="#5B7280",fontcolor="#465C6C",arrowsize=0.6,constraint=false];
+ D1 -> P7 [xlabel="I19",color="#5B7280",fontcolor="#465C6C",arrowsize=0.6,constraint=false];
+ D3 -> P8 [xlabel="I20",color="#5B7280",fontcolor="#465C6C",arrowsize=0.6,constraint=false];
+ D4 -> P8 [xlabel="I21",color="#5B7280",fontcolor="#465C6C",arrowsize=0.6,constraint=false];
+ D5 -> P8 [xlabel="I22",color="#5B7280",fontcolor="#465C6C",arrowsize=0.6,constraint=false];
+ D1 -> P8 [xlabel="I23",color="#5B7280",fontcolor="#465C6C",arrowsize=0.6,constraint=false];
+ E1 -> P4 [label="F19 · Dữ liệu thiết bị/phiên, heartbeat, offline",color="#2563A6",fontcolor="#1D4C88",penwidth=1.35,constraint=false];
+ P4 -> E1 [label="F20 · Mã phiên / trạng thái phiên",color="#2563A6",fontcolor="#1D4C88",penwidth=1.35,constraint=false];
+}

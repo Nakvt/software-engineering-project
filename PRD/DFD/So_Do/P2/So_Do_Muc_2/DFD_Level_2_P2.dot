@@ -1,0 +1,41 @@
+// Bản V10: QR client gọi sai route; expo-speech chạy thực; phát audio file chưa có.
+// Đối chiếu commit: e75a63f7b916d0d90c2a608d1fc8af3d4907489b. Không đổi số lượng hoặc chiều luồng.
+// DFD MỨC 2 — phân rã tiến trình 2.0 (Tra cứu POI & thuyết minh)
+// CÁC LUỒNG BIÊN theo DFD mức 1: F01,F02,F05,F06,F07,F08,I01,I02,I11.
+// Lưu ý: các tiến trình con là phân rã LOGIC, không khẳng định mỗi tiến trình có API riêng.
+// Render: dot -Tsvg DFD_Level_2_P2.dot -o DFD_Level_2_P2.svg
+//         dot -Tpng -Gdpi=155 DFD_Level_2_P2.dot -o DFD_Level_2_P2.png
+
+digraph DFD_Level_2_P2 {
+ graph [label="DFD MỨC 2 — PHÂN RÃ TIẾN TRÌNH 2.0: TRA CỨU POI & THUYẾT MINH\nHệ thống Tự động thuyết minh đa ngôn ngữ · D1 là kho logic trên NeonDB PostgreSQL",
+        labelloc=t,fontname="Arial",fontsize=19,fontcolor="#26374C",bgcolor="white",
+        pad=0.52,rankdir=LR,nodesep=1.12,ranksep=2.32,splines=polyline, concentrate=false, newrank=true,outputorder=edgesfirst];
+ node [fontname="Arial",fontsize=11];
+ edge [fontname="Arial",fontsize=9,arrowsize=0.90,penwidth=1.45,color="#526879"];
+ E1 [label="E1\nKHÁCH THAM QUAN",shape=box,style=filled,fillcolor="#1687C1",fontcolor=white,margin="0.20,0.17"];
+ P5 [label="5.0\nGhi nhận\nlịch sử nghe\n(kế cận)",shape=circle,style=filled,fillcolor="#E9EFF3",color="#8AA3B5",fontcolor="#32485A",fixedsize=true,width=1.65,height=1.65];
+ P21 [label="2.1\nTiếp nhận\ntra cứu\nPOI",shape=circle,style=filled,fillcolor="#F5A623",fontcolor=white,fixedsize=true,width=1.72,height=1.72];
+ P22 [label="2.2\nTiếp nhận\nmã QR\nPOI",shape=circle,style=filled,fillcolor="#F5A623",fontcolor=white,fixedsize=true,width=1.72,height=1.72];
+ P23 [label="2.3\nTra cứu POI\nvà chọn\nngôn ngữ",shape=circle,style=filled,fillcolor="#F5A623",fontcolor=white,fixedsize=true,width=1.72,height=1.72];
+ P24 [label="2.4\nChuẩn bị\nnội dung\nthuyết minh",shape=circle,style=filled,fillcolor="#F5A623",fontcolor=white,fixedsize=true,width=1.72,height=1.72];
+ P25 [label="2.5\nĐiều phối\nphát audio\n/ TTS",shape=circle,style=filled,fillcolor="#F5A623",fontcolor=white,fixedsize=true,width=1.72,height=1.72];
+ D1 [shape=plain, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD WIDTH="250" HEIGHT="4" BGCOLOR="#087E83"></TD></TR><TR><TD HEIGHT="52" BGCOLOR="#EAF9F8"><FONT FACE="Arial" COLOR="#164E50" POINT-SIZE="12">D1  |  POI / danh mục / nội dung</FONT></TD></TR><TR><TD HEIGHT="4" BGCOLOR="#087E83"></TD></TR></TABLE>>];
+ {rank=same; P21; P22;}
+ {rank=same; P23; D1;}
+ {rank=same; P25; P5;}
+ // Luồng cốt lõi từ trái sang phải
+ E1 -> P21 [label="F01 · Yêu cầu tra cứu",color="#2563A6",fontcolor="#1D4C88",weight=9];
+ E1 -> P22 [label="F05 · Mã QR",color="#2563A6",fontcolor="#1D4C88",weight=6];
+ P21 -> P23 [label="T01 · Tiêu chí POI",weight=9];
+ P22 -> P23 [label="T02 · Khóa POI từ QR (API chưa khớp)",weight=7];
+ P23 -> P24 [label="T03 · Nội dung/metadata đã chọn",weight=9];
+ P24 -> P25 [label="T04 · Script TTS / audio URL (chưa phát file)",weight=9];
+ // Các luồng biên khác: luôn giữ cùng mã, nguồn và chiều như mức 1
+ E1 -> P23 [label="F06 · Ngôn ngữ, giọng đọc",color="#2563A6",fontcolor="#1D4C88",constraint=false];
+ P23 -> E1 [label="F02 · Danh sách / chi tiết POI",color="#2563A6",fontcolor="#1D4C88",constraint=false];
+ P23 -> D1 [xlabel="I01",color="#087E83",fontcolor="#087E83",constraint=false];
+ D1 -> P23 [xlabel="I02",color="#087E83",fontcolor="#087E83",constraint=false];
+ E1 -> P25 [label="F08 · Yêu cầu phát / tạm dừng",color="#2563A6",fontcolor="#1D4C88",constraint=false];
+ P25 -> E1 [label="F07 · Nội dung thuyết minh",color="#2563A6",fontcolor="#1D4C88",constraint=false];
+ P25 -> P5 [label="I11 · Sự kiện nghe khi hoàn tất (trigger chưa chuẩn)",color="#B26C16",fontcolor="#8A5318",constraint=false];
+}

@@ -1,0 +1,45 @@
+// Bản V10: refresh không rotate refresh token.
+// Đối chiếu commit: e75a63f7b916d0d90c2a608d1fc8af3d4907489b. Không đổi số lượng hoặc chiều luồng.
+// DFD mức 2 — phân rã tiến trình 1.0: Xác thực quản trị.
+// Luồng biên KHÔNG ĐỔI so với DFD mức 1: F09 E2→P1; F10 P1→E2;
+// I13 P1→D6; I14 D6→P1; I24 P1→D6.
+// D6 = admins + admin_refresh_tokens (kho logic NeonDB PostgreSQL Cloud).
+// Mở SVG/PNG để xem; script là nguồn có thể sửa và tái tạo hình.
+digraph DFD_Level_2_P1 {
+  graph [label="DFD MỨC 2 — PHÂN RÃ TIẾN TRÌNH 1.0: XÁC THỰC QUẢN TRỊ\nHệ thống Tự động thuyết minh đa ngôn ngữ · D6 trên NeonDB PostgreSQL Cloud",
+    labelloc=t, labeljust=c, fontname="Arial", fontsize=19,
+    fontcolor="#233247", bgcolor="white", pad=0.7,
+    rankdir=LR, nodesep=1.12, ranksep=2.32, splines=polyline, concentrate=false, newrank=true, outputorder=edgesfirst];
+  node [fontname="Arial", fontsize=11];
+  edge [fontname="Arial", fontsize=9, arrowsize=0.90, penwidth=1.45, color="#64748B"];
+
+  E2  [label="E2\nQUẢN TRỊ VIÊN", shape=box, style=filled, fillcolor="#1687C1", fontcolor=white, margin="0.26,0.2"];
+  P11 [label="1.1\nTiếp nhận yêu\ncầu xác thực", shape=circle, style=filled, fillcolor="#F5A623", fontcolor=white, width=1.83, height=1.83, fixedsize=true];
+  P12 [label="1.2\nTra cứu tài khoản\nvà token", shape=circle, style=filled, fillcolor="#F5A623", fontcolor=white, width=1.83, height=1.83, fixedsize=true];
+  P13 [label="1.3\nKiểm tra mật khẩu\nhoặc token", shape=circle, style=filled, fillcolor="#F5A623", fontcolor=white, width=1.83, height=1.83, fixedsize=true];
+  P14 [label="1.4\nCấp, làm mới hoặc\nthu hồi token", shape=circle, style=filled, fillcolor="#F5A623", fontcolor=white, width=1.83, height=1.83, fixedsize=true];
+  P15 [label="1.5\nTổng hợp và\ntrả kết quả", shape=circle, style=filled, fillcolor="#F5A623", fontcolor=white, width=1.83, height=1.83, fixedsize=true];
+  D6 [shape=plain, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR><TD WIDTH="250" HEIGHT="4" BGCOLOR="#087E83"></TD></TR><TR><TD HEIGHT="52" BGCOLOR="#EAF9F8"><FONT FACE="Arial" COLOR="#164E50" POINT-SIZE="12">D6  |  ADMIN / REFRESH TOKEN<BR/>admins · admin_refresh_tokens</FONT></TD></TR><TR><TD HEIGHT="4" BGCOLOR="#087E83"></TD></TR></TABLE>>];
+
+  {rank=same; E2;}
+  {rank=same; P11;}
+  {rank=same; P12;}
+  {rank=same; P13;}
+  {rank=same; P14;}
+  {rank=same; P15; D6;}
+
+  // Luồng biên của tiến trình 1.0: giữ mã + chiều của DFD mức 1.
+  E2  -> P11 [label="F09 · Đăng nhập / refresh / đăng xuất", color="#2563A6", fontcolor="#1D4C88", penwidth=1.6, weight=6];
+  P15 -> E2  [label="F10 · Token / trạng thái xác thực", color="#2563A6", fontcolor="#1D4C88", penwidth=1.6, constraint=false];
+  P12 -> D6  [label="I24 · Tiêu chí tra cứu tài khoản/token", color="#087E83", fontcolor="#087E83", penwidth=1.5, constraint=false];
+  D6  -> P12 [label="I14 · Dữ liệu tài khoản/token", color="#087E83", fontcolor="#087E83", penwidth=1.5, constraint=false];
+  P14 -> D6 [label="I13 · Dữ liệu lưu / thu hồi refresh token", color="#087E83", fontcolor="#087E83", penwidth=1.5, constraint=false];
+
+  // Luồng nội bộ T11–T16 chỉ có nghĩa bên trong tiến trình cha 1.0.
+  P11 -> P12 [label="T11 · Định danh tài khoản / token cần kiểm tra", weight=8];
+  P11 -> P13 [label="T12 · Thông tin bí mật hoặc refresh token", constraint=false];
+  P12 -> P13 [label="T13 · Bản ghi tài khoản / token", weight=8];
+  P13 -> P14 [label="T14 · Kết quả kiểm tra hợp lệ", weight=8];
+  P13 -> P15 [label="T15 · Thông báo xác thực thất bại", constraint=false];
+  P14 -> P15 [label="T16 · Access token / trạng thái phiên", weight=8];
+}
